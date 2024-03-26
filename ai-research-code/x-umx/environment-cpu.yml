@@ -1,0 +1,19 @@
+name: open-unmix-nnabla-cpu
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.8
+  - numpy
+  - tqdm
+  - ffmpeg
+  - libsndfile
+  - pip:
+    - musdb
+    - scikit-learn
+    - norbert
+    - resampy
+    - nnabla
+    - pydub
+    - soundfile

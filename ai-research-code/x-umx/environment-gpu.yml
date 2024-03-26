@@ -1,0 +1,22 @@
+name: open-unmix-nnabla-gpu
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.8
+  - numpy
+  - tqdm
+  - cudatoolkit=11.0
+  - cudnn
+  - ffmpeg
+  - libsndfile
+  - pip:
+    - musdb
+    - scikit-learn
+    - norbert
+    - resampy
+    - nnabla
+    - nnabla-ext-cuda110
+    - pydub
+    - soundfile
