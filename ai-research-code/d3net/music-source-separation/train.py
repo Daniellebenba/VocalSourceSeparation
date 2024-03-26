@@ -51,7 +51,7 @@ def train():
 
     # Get context.
     #*
-    # args.context = 'cpu'
+    # args.context = 'cpu'    # uncomment
     ctx = get_extension_context(args.context, device_id=args.device_id)
     # ctx.device_id = '0'
     comm = CommunicatorWrapper(ctx)
@@ -120,6 +120,12 @@ def train():
     print(f"Created input variables: mixture_audio: {mixture_audio.shape}, target_audio: {target_audio.shape}")
 
 
+    # nn.load_parameters("/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5")
+    # Load pretrained weights
+    if args.checkpoint_path:
+        print(f"Load pretrained weights")
+        nn.load_parameters(f"{args.checkpoint_path}.h5")
+
     with open(f"./configs/{args.target}.yaml") as file:
         # Load target specific Hyper parameters
         print(f"Load target specific Hyper parameters")
@@ -136,16 +142,10 @@ def train():
               n_fft=hparams['fft_size'], n_hop=hparams['hop_size'], patch_length=256),
         mono=(hparams['n_channels'] == 1))
 
+
     with nn.parameter_scope(args.target):
         d3net = D3NetMSS(hparams, comm=comm.comm, input_mean=scaler_mean,
                          input_scale=scaler_std, init_method='xavier')
-
-        # Load pretrained weights
-        print(f"Load pretrained weights")
-        if args.checkpoint_path:
-            nn.load_parameters(f"{args.checkpoint_path}.h5")
-
-        # nn.load_parameters("/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5")
 
         pred_spec = d3net(mix_spec)
 
