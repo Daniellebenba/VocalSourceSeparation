@@ -51,15 +51,16 @@ def train():
 
     # Get context.
     #*
-    args.context = 'cpu'
+    # args.context = 'cpu'
     ctx = get_extension_context(args.context, device_id=args.device_id)
-    ctx.device_id = '0'
+    # ctx.device_id = '0'
     comm = CommunicatorWrapper(ctx)
     nn.set_default_context(comm.ctx)
     ext = import_extension_module(args.context)
 
     # Monitors
     # setting up monitors for logging
+    print(f"setting up monitors for logging")
     monitor_path = os.path.join(args.output, args.target)
     monitor = Monitor(monitor_path)
 
@@ -78,6 +79,7 @@ def train():
             os.makedirs(args.output)
 
     # Initialize DataIterator for MUSDB.
+    print(f"Initialize DataIterator for MUSDB")
     train_source, args = load_datasources(parser, args)
 
     train_iter = data_iterator(
@@ -102,6 +104,7 @@ def train():
     print(f"max_iter per GPU-device:{max_iter}")
 
     # Calculate the statistics (mean and variance) of the dataset
+    print(f"Calculate the statistics (mean and variance) of the dataset")
     scaler_mean, scaler_std = get_statistics(args, train_source)
 
     # clear cache memory
@@ -110,16 +113,20 @@ def train():
     # Create input variables.
     mixture_audio = nn.Variable(
         [args.batch_size] + list(train_source._get_data(0)[0].shape))
+
     target_audio = nn.Variable(
         [args.batch_size] + list(train_source._get_data(0)[1].shape))
 
+    print(f"Created input variables: mixture_audio: {mixture_audio.shape}, target_audio: {target_audio.shape}")
 
 
     with open(f"./configs/{args.target}.yaml") as file:
         # Load target specific Hyper parameters
+        print(f"Load target specific Hyper parameters")
         hparams = yaml.load(file, Loader=yaml.FullLoader)
 
     # create training graph
+    print(f"create training graph")
     mix_spec = spectogram(
         *stft(mixture_audio,
               n_fft=hparams['fft_size'], n_hop=hparams['hop_size'], patch_length=256),
@@ -134,10 +141,11 @@ def train():
                          input_scale=scaler_std, init_method='xavier')
 
         # Load pretrained weights
+        print(f"Load pretrained weights")
         if args.checkpoint_path:
             nn.load_parameters(f"{args.checkpoint_path}.h5")
 
-        nn.load_parameters("/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5")
+        # nn.load_parameters("/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5")
 
         pred_spec = d3net(mix_spec)
 
@@ -155,6 +163,7 @@ def train():
     # AverageMeter for mean loss calculation over the epoch
     losses = AverageMeter()
     log_batch = 3 # **
+    print(f"Start training ...")
     for epoch in range(args.epochs):
         # TRAINING
         losses.reset()
@@ -173,7 +182,9 @@ def train():
             losses.update(loss.d.copy(), args.batch_size)
 
             if comm.rank == 0 and batch % log_batch == 0:
-                monitor_traing_loss_batch.add(batch, losses.get_avg())
+                avg_loss = losses.get_avg()
+                monitor_traing_loss_batch.add(batch, avg_loss)
+                print(f"epoch {epoch}, batch {batch}, loss: {loss}")
 
         training_loss = losses.get_avg()
 
@@ -189,11 +200,15 @@ def train():
             monitor_time.add(epoch)
 
             # save intermediate weights
-            nn.save_parameters(f"{os.path.join(args.output, args.target)}.h5")
+            path = f"{os.path.join(args.output, args.target)}.h5"
+            print(f"finish epoch {epoch}, loss: {training_loss}, saving checkpoint {path}")
+            nn.save_parameters(path)
 
     if comm.rank == 0:
         # save final weights
-        nn.save_parameters(f"{os.path.join(args.output, args.target)}_final.h5")
+        path = f"{os.path.join(args.output, args.target)}_final.h5"
+        print(f"saving final weights {path}")
+        nn.save_parameters(path)
 
 
 if __name__ == '__main__':
