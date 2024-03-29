@@ -127,7 +127,9 @@ class MUSDBDataSource(DataSource):
         self.source_augmentations = source_augmentations
         self.random_track_mix = random_track_mix
         # **
-        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"
+        # uncomment
+        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"
+        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"
         args.is_wav = False
         # **
         self.mus = musdb.DB(

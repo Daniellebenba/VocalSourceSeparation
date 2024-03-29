@@ -42,6 +42,7 @@ def get_nnabla_version_integer():
 
 
 def train():
+    path = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/Young Griffo - Facade.stem.mp4"
     # Check NNabla version
     if get_nnabla_version_integer() < 11900:
         raise ValueError(
@@ -51,9 +52,9 @@ def train():
 
     # Get context.
     #*
-    # args.context = 'cpu'    # uncomment
+    args.context = 'cpu'    # uncomment
     ctx = get_extension_context(args.context, device_id=args.device_id)
-    # ctx.device_id = '0'
+    ctx.device_id = '0'
     comm = CommunicatorWrapper(ctx)
     nn.set_default_context(comm.ctx)
     ext = import_extension_module(args.context)
