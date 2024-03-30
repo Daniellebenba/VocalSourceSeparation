@@ -42,7 +42,6 @@ def get_nnabla_version_integer():
 
 
 def train():
-    path = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/Young Griffo - Facade.stem.mp4"
     # Check NNabla version
     if get_nnabla_version_integer() < 11900:
         raise ValueError(
@@ -104,9 +103,15 @@ def train():
 
     print(f"max_iter per GPU-device:{max_iter}")
 
-    # Calculate the statistics (mean and variance) of the dataset
-    print(f"Calculate the statistics (mean and variance) of the dataset")
-    scaler_mean, scaler_std = get_statistics(args, train_source)
+    # todo: hardcoded
+    args.checkpoint_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
+
+    if args.checkpoint_path:
+        scaler_mean, scaler_std = None, None        # since we load anyways the oddset and scale        # TODO: do we want to change that? so we learn new?
+    else:
+        # Calculate the statistics (mean and variance) of the dataset
+        print(f"Calculate the statistics (mean and variance) of the dataset")
+        scaler_mean, scaler_std = get_statistics(args, train_source)
 
     # clear cache memory
     ext.clear_memory_cache()
@@ -120,8 +125,7 @@ def train():
 
     print(f"Created input variables: mixture_audio: {mixture_audio.shape}, target_audio: {target_audio.shape}")
 
-    # todo: hardcoded
-    args.checkpoint_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
+
     # Load pretrained weights
     if args.checkpoint_path:
         print(f"Load pretrained weights")

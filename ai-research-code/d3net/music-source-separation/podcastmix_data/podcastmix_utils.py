@@ -366,7 +366,7 @@ class PodcastMixDB(object):
     def __init__(
         self,
         root,
-        df_tracks: List[pd.DataFrame],
+        # df_tracks: List[pd.DataFrame],      # todo change to rwad inside the df
         setup_file=None,
         is_wav=False,
         download=False,
@@ -386,7 +386,7 @@ class PodcastMixDB(object):
         #     self.root = os.path.expanduser(root)
 
         self.root = os.path.expanduser(root)
-        self.root = os.path.dirname(os.path.dirname(self.root))
+        # self.root = os.path.dirname(os.path.dirname(self.root))
 
         if setup_file is not None:
             setup_path = op.join(self.root, setup_file)
@@ -415,7 +415,7 @@ class PodcastMixDB(object):
         self.targets_names = list(self.setup["targets"].keys())
 
         self.is_wav = is_wav
-        self.tracks = self.load_tracks(df_tracks, subsets=subsets, split=split)
+        self.tracks = self.load_tracks(subsets=subsets, split=split)
 
     def __getitem__(self, index):
         return self.tracks[index]
@@ -441,7 +441,7 @@ class PodcastMixDB(object):
 
         return targets
 
-    def load_tracks(self, df_tracks: List[pd.DataFrame], subsets=None, split=None):
+    def load_tracks(self, subsets=None, split=None):
         """Parses the musdb folder structure, returns list of `Track` objects
 
         Parameters
@@ -469,11 +469,11 @@ class PodcastMixDB(object):
         if subsets != ["train"] and split is not None:
             raise RuntimeError("Subset has to set to `train` when split is used")
 
-        assert len(df_tracks) == len(subsets)
 
         tracks = []
-        for subset, df in zip(subsets, df_tracks):
-            subset_folder = op.join(self.root, subset)      # todo here change if not metadata then add subdir based on subset
+        for subset in subsets:
+            subset_folder = op.join(self.root, subset, f"{subset}.csv")      # todo here change if not metadata then add subdir based on subset
+            df = pd.read_csv(subset_folder, engine='python', delimiter=';')         # create .csv files of the mixes for synthetic
             for i, row in df.iterrows():
             # for _, folders, files in os.walk(subset_folder):
                 # if self.is_wav:
@@ -523,3 +523,11 @@ class PodcastMixDB(object):
 
 
         return tracks
+
+
+def mono_to_stereo(x):
+    if len(x.shape) == 1:  # mono to stereo
+        x = np.stack((x, x))
+    return x
+
+

@@ -1,18 +1,31 @@
 import torch
-from torch.utils.data import Dataset
 import pandas as pd
 import torchaudio
-import os
-import numpy as np
 import random
-from podcastmix_utils import Resampler
+import numpy as np
+import os
+
+from .podcastmix_utils import PodcastMixDB, Resampler
+from nnabla.utils.data_source import DataSource
 
 
-class PodcastMixDataloader(Dataset):
-    dataset_name = "PodcastMix"
 
-    def __init__(self, csv_dir, sample_rate=44100, original_sample_rate=44100, segment=2,
-                 shuffle_tracks=False, multi_speakers=False):
+class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
+    dataset_name = "PodcastMix-Synth"
+
+    # def __init__(self, csv_dir, sample_rate=44100, original_sample_rate=44100, segment=2,
+    #              shuffle_tracks=False, multi_speakers=False):
+
+    def __init__(self,
+                 args,  # from origin MusDB
+                 subset: str = "train",
+                 sample_rate=44100, original_sample_rate=44100, segment=6,  # 2,
+                 download=False, samples_per_track=64, source_augmentations=lambda audio: audio,
+                 shuffle_tracks=False, multi_speakers=False,
+                 random_track_mix=False, dtype=np.float32, seed=42, rng=None,  # from origin MusDB
+                 to_stereo: bool = True):
+
+
         """
         train_set = PodcastMixDataloader(
         csv_dir=conf["data"]["train_dir"],
@@ -22,8 +35,7 @@ class PodcastMixDataloader(Dataset):
         shuffle_tracks=True,
         multi_speakers=conf["training"]["multi_speakers"])
         """
-
-        self.csv_dir = csv_dir
+        self.csv_dir = os.path.join(args.root, "metadata", subset)
         self.segment = segment
         # sample_rate of the original files
         self.original_sample_rate = original_sample_rate
@@ -62,6 +74,37 @@ class PodcastMixDataloader(Dataset):
         # 1/denominator_gain to multiply the music gain
         self.denominator_gain = 20
         self.gain_ramp = np.array(range(1, self.denominator_gain, 1)) / self.denominator_gain
+        self.to_stereo = to_stereo
+
+        # ---------- from origin MusDB ------------
+        if rng is None:
+            rng = np.random.RandomState(seed)
+        self.rng = rng
+
+        random.seed(seed)
+        self.args = args
+        self.download = args.root is None
+        self.samples_per_track = samples_per_track
+        self.source_augmentations = source_augmentations
+        self.random_track_mix = random_track_mix
+
+        # todo: support synth case!!!
+        self.mus = PodcastMixDB(        # todo: chane to support synthetic
+            root=args.root,
+            # df_tracks=[self.df_speech, self.df_music],      # todo: not sure wich dfs here
+            is_wav=args.is_wav,
+            split=None,
+            subsets=subset#,        # change since train was hardcoded
+            # download=download
+        )
+        self.sample_rate = 44100  # musdb has fixed sample rate     # TODO maybe change: the same with PodcastMix
+        self.dtype = dtype
+
+        self._size = len(self) * self.samples_per_track
+        self._variables = ('mixture', 'target')
+        self.reset()
+
+        # ---------- END from origin MusDB ------------
 
         # shuffle the static random gain to use it in testing
         np.random.shuffle(self.gain_ramp)
@@ -220,10 +263,12 @@ class PodcastMixDataloader(Dataset):
         return zeros_aux[:array_size]
 
     def __getitem__(self, idx):
-        if (idx == 0 and self.shuffle_tracks):
-            # shuffle on first epochs of training and validation. Not testing
-            random.shuffle(self.music_inxs)
-            random.shuffle(self.speech_inxs)
+
+        # if (idx == 0 and self.shuffle_tracks):
+        #     # shuffle on first epochs of training and validation. Not testing
+        #     random.shuffle(self.music_inxs)
+        #     random.shuffle(self.speech_inxs)
+
         # get corresponding index from the list
         music_idx = self.music_inxs[idx]
         speech_idx = self.speech_inxs[idx]
@@ -263,10 +308,13 @@ class PodcastMixDataloader(Dataset):
         mixture = torch.squeeze(mixture)
 
         # Stack sources
-        sources = np.vstack(sources_list)
+        sources = np.vstack(sources_list).astype(np.float64)       # todo: change type to float64? also need todo as in the real data
 
         # Convert sources to tensor
         # sources = torch.from_numpy(sources)       # we need numpy array
+        mixture = mixture.numpy().astype(np.float64)
+        if self.to_stereo:
+            mixture = np.stack((mixture, mixture), axis=0)
 
         return mixture, sources
 
@@ -280,18 +328,70 @@ class PodcastMixDataloader(Dataset):
         return infos
 
 
-class PodcastLoader(Dataset):
-    dataset_name = "PodcastMix"
+    def _get_data(self, position):
+        return self[position]
 
-    def __init__(self, csv_dir, sample_rate=44100, segment=2, to_stereo: bool = True):
-        self.csv_dir = csv_dir
-        self.root = os.path.dirname(os.path.dirname(os.path.dirname(self.csv_dir)))        # added
+
+    def reset(self):
+        if self._shuffle:
+            self._indexes = self.rng.permutation(self._size)
+        else:
+            self._indexes = np.arange(self._size)
+        super(PodcastMixDataSourceSynth, self).reset()
+
+
+class PodcastMixDataSourceReal(DataSource):
+    # path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix_data/podcastmix_data-real-with-reference'
+    dataset_name = "PodcastMix-RealWithRef"
+
+    def __init__(self,
+                 args, # from origin MusDB
+                 subset: str = "metadata",
+                 sample_rate=44100, segment=6, #2,
+                 download=False, samples_per_track=64, source_augmentations=lambda audio: audio, random_track_mix=False, dtype=np.float32, seed=42, rng=None,     # from origin MusDB
+                 to_stereo: bool = True):
+
+        super(PodcastMixDataSourceReal, self).__init__(shuffle=True)
+
+        csv_dir = os.path.join(args.root, "metadata")
         self.segment = segment
         self.sample_rate = sample_rate
-        self.mix_csv_path = os.path.join(self.csv_dir, 'metadata.csv')
+        self.root = os.path.dirname(os.path.dirname(os.path.dirname(csv_dir)))        # added
+        self.mix_csv_path = os.path.join(csv_dir, 'metadata.csv')
         self.df_mix = pd.read_csv(self.mix_csv_path, engine='python', delimiter=';')
         self.to_stereo = to_stereo
+
+        # ---------- from origin MusDB ------------
+        if rng is None:
+            rng = np.random.RandomState(seed)
+        self.rng = rng
+
+        random.seed(seed)
+        self.args = args
+        self.download = args.root is None
+        self.samples_per_track = samples_per_track
+        self.source_augmentations = source_augmentations
+        self.random_track_mix = random_track_mix
+
+        self.mus = PodcastMixDB(
+            root=args.root,
+            # df_tracks=[self.df_mix],
+            is_wav=args.is_wav,
+            split=None,
+            subsets="metadata",        # change since train was hardcoded
+            download=download
+        )
+        self.sample_rate = 44100  # musdb has fixed sample rate     # TODO maybe change: the same with PodcastMix
+        self.dtype = dtype
+
+        self._size = len(self) * self.samples_per_track
+        self._variables = ('mixture', 'target')
+        self.reset()
+
+        # ---------- END from origin MusDB ------------
         torchaudio.set_audio_backend(backend='soundfile')
+
+
 
     def __len__(self):
         return len(self.df_mix)
@@ -330,20 +430,18 @@ class PodcastLoader(Dataset):
         return mixture, sources      # return numpy arrays: (2, 88200), (2, 88200)
 
 
-if __name__ == "__main__":
-    batch_size = 4
-    num_workers = 1
-    csv_dir = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/metadata/train"       # synthetic train
-    # train_set = PodcastMixDataloader(csv_dir)
-    csv_dir = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference/metadata"        # with ref test
-    test = PodcastLoader(csv_dir)
-    sample = test[0]
-    from torch.utils.data import DataLoader
-    # train_loader = DataLoader(
-    #     train_set,
-    #     shuffle=True,
-    #     batch_size=batch_size,
-    #     num_workers=num_workers,
-    #     drop_last=True,
-    #     pin_memory=True
-    # )
+    def _get_data(self, position):
+        return self[position]
+
+
+    def reset(self):
+        if self._shuffle:
+            self._indexes = self.rng.permutation(self._size)
+        else:
+            self._indexes = np.arange(self._size)
+        super(PodcastMixDataSourceReal, self).reset()
+
+
+
+
+
