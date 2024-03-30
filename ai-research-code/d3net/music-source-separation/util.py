@@ -26,6 +26,8 @@ from sklearn import preprocessing   # **
 import tqdm
 from model import D3NetMSS, stft, spectogram
 
+from podcastmix_data.podcastmix_utils import mono_to_stereo
+
 
 def get_statistics(args, datasource):
     scaler = preprocessing.StandardScaler()     # **
@@ -34,8 +36,8 @@ def get_statistics(args, datasource):
 
     for ind in pbar:
         x = datasource.mus.tracks[ind].audio.T
-        if len(x.shape) == 1:       # mono to stereo
-            x = np.stack((x, x))
+        # x = datasource._get_data(ind)[0]      # todo change here insteadf of mus.tracks
+        x = mono_to_stereo(x)
         audio = nn.NdArray.from_numpy_array(x[None, ...])
         target_spec = spectogram(
             *stft(audio, n_fft=args.nfft, n_hop=args.nhop),

@@ -20,7 +20,7 @@ import random
 import numpy as np
 import musdb
 from nnabla.utils.data_source import DataSource
-from podcastmix.podcastmix_nnbala_datasources import PodcastMixDataSourceReal
+from podcastmix_data.podcastmix_nnbala_datasources import PodcastMixDataSourceReal, PodcastMixDataSourceSynth
 
 
 class Compose():
@@ -58,7 +58,7 @@ def load_datasources(parser, args):
         train_dataset, validation_dataset
     """
     parser.add_argument('--data-source', type=str, default="musdb",
-                        help='Choose data source: musdb or podcastmix')
+                        help='Choose data source: musdb / podcastmix_real / podcastmix_synth')
 
     parser.add_argument('--is-wav', action='store_true', default=True,
                         help='loads wav instead of STEMS')
@@ -75,17 +75,21 @@ def load_datasources(parser, args):
     )
 
     # test:
-    args.data_source = "podcastmix"
+    # args.data_source = "musdb"
+    args.data_source = "podcastmix_real"
     args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference'
 
     if args.data_source == "musdb":
         train_dataset = MUSDBDataSource(
             source_augmentations=source_augmentations, random_track_mix=True, args=args)
-    elif args.data_source == "podcastmix":
+    elif args.data_source == "podcastmix_synth":
+        train_dataset = PodcastMixDataSourceSynth(
+            source_augmentations=source_augmentations, random_track_mix=True, args=args)
+    elif args.data_source == "podcastmix_real":
         train_dataset = PodcastMixDataSourceReal(
             source_augmentations=source_augmentations, random_track_mix=True, args=args)
     else:
-        raise Exception("not supported data source, choose musdb or podcastmix only")
+        raise Exception("not supported data source, choose musdb/ podcastmix_real/ podcastmix_synth only!")
 
     return train_dataset, args
 
@@ -142,8 +146,9 @@ class MUSDBDataSource(DataSource):
         self.random_track_mix = random_track_mix
         # **
         # uncomment
-        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"       # TODO: warning!!
+        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"       # TODO: warning!!
         # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"
+        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/musdb18"
         args.is_wav = False     # TODO: warning!!
         # **
         self.mus = musdb.DB(
