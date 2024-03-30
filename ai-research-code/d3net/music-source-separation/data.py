@@ -20,6 +20,7 @@ import random
 import numpy as np
 import musdb
 from nnabla.utils.data_source import DataSource
+from podcastmix.podcastmix_nnbala_datasources import PodcastMixDataSourceReal
 
 
 class Compose():
@@ -56,6 +57,8 @@ def load_datasources(parser, args):
     Returns:
         train_dataset, validation_dataset
     """
+    parser.add_argument('--data-source', type=str, default="musdb",
+                        help='Choose data source: musdb or podcastmix')
 
     parser.add_argument('--is-wav', action='store_true', default=True,
                         help='loads wav instead of STEMS')
@@ -71,8 +74,18 @@ def load_datasources(parser, args):
         [globals()['_augment_' + aug] for aug in args.source_augmentations]
     )
 
-    train_dataset = MUSDBDataSource(
-        source_augmentations=source_augmentations, random_track_mix=True, args=args)
+    # test:
+    args.data_source = "podcastmix"
+    args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference'
+
+    if args.data_source == "musdb":
+        train_dataset = MUSDBDataSource(
+            source_augmentations=source_augmentations, random_track_mix=True, args=args)
+    elif args.data_source == "podcastmix":
+        train_dataset = PodcastMixDataSourceReal(
+            source_augmentations=source_augmentations, random_track_mix=True, args=args)
+    else:
+        raise Exception("not supported data source, choose musdb or podcastmix only")
 
     return train_dataset, args
 
@@ -81,6 +94,7 @@ class MUSDBDataSource(DataSource):
     def __init__(
         self,
         args,
+        subset: str = "train",
         download=False,
         samples_per_track=64,
         source_augmentations=lambda audio: audio,
@@ -127,20 +141,22 @@ class MUSDBDataSource(DataSource):
         self.source_augmentations = source_augmentations
         self.random_track_mix = random_track_mix
         # **
-        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"
-        args.is_wav = False
+        # uncomment
+        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"       # TODO: warning!!
+        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"
+        args.is_wav = False     # TODO: warning!!
         # **
         self.mus = musdb.DB(
             root=args.root,
             is_wav=args.is_wav,
             split=None,
-            subsets='train',
+            subsets=subset,        # train is hardcoded!!
             download=download
         )
 
         print(f"Finished loading dataset with {len(self.mus.tracks)} tracks.")
 
-        self.sample_rate = 44100  # musdb has fixed sample rate
+        self.sample_rate = 44100  # musdb has fixed sample rate     # TODO maybe change: the same with PodcastMix
         self.dtype = dtype
 
         self._size = len(self.mus.tracks) * self.samples_per_track

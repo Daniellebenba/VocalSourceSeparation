@@ -29,10 +29,13 @@ from model import D3NetMSS, stft, spectogram
 
 def get_statistics(args, datasource):
     scaler = preprocessing.StandardScaler()     # **
+
     pbar = tqdm.tqdm(range(len(datasource.mus.tracks)))
 
     for ind in pbar:
         x = datasource.mus.tracks[ind].audio.T
+        if len(x.shape) == 1:       # mono to stereo
+            x = np.stack((x, x))
         audio = nn.NdArray.from_numpy_array(x[None, ...])
         target_spec = spectogram(
             *stft(audio, n_fft=args.nfft, n_hop=args.nhop),
