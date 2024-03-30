@@ -113,10 +113,10 @@ def train():
 
     # Create input variables.
     mixture_audio = nn.Variable(
-        [args.batch_size] + list(train_source._get_data(0)[0].shape))
+        [args.batch_size] + list(train_source._get_data(0)[0].shape))       # MusdDB: (batch, 2, 264600)
 
     target_audio = nn.Variable(
-        [args.batch_size] + list(train_source._get_data(0)[1].shape))
+        [args.batch_size] + list(train_source._get_data(0)[1].shape))      # MusdDB: (batch, 2, 264600)
 
     print(f"Created input variables: mixture_audio: {mixture_audio.shape}, target_audio: {target_audio.shape}")
 
@@ -137,18 +137,18 @@ def train():
     mix_spec = spectogram(
         *stft(mixture_audio,
               n_fft=hparams['fft_size'], n_hop=hparams['hop_size'], patch_length=256),
-        mono=(hparams['n_channels'] == 1))
+        mono=(hparams['n_channels'] == 1))           # original MusDB: mix_spec.shape: (6, 256, 2, 2049), 2: right and small channels
     target_spec = spectogram(
         *stft(target_audio,
               n_fft=hparams['fft_size'], n_hop=hparams['hop_size'], patch_length=256),
-        mono=(hparams['n_channels'] == 1))
+        mono=(hparams['n_channels'] == 1))          # original MusDB: mix_spec.shape: (6, 256, 2, 2049), 2: vocals (=target) and others tracks
 
 
     with nn.parameter_scope(args.target):
         d3net = D3NetMSS(hparams, comm=comm.comm, input_mean=scaler_mean,
                          input_scale=scaler_std, init_method='xavier')
 
-        pred_spec = d3net(mix_spec)
+        pred_spec = d3net(mix_spec)         # original MusDB: mix_spec.shape: (6, 256, 2, 2049), also the pred_spec: (6, 256, 2, 2049)
 
     loss = F.mean(F.squared_error(pred_spec, target_spec))
     loss.persistent = True
