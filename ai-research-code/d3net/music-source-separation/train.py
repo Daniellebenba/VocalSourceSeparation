@@ -120,12 +120,12 @@ def train():
 
     print(f"Created input variables: mixture_audio: {mixture_audio.shape}, target_audio: {target_audio.shape}")
 
-
-    # nn.load_parameters("/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5")
+    # todo: hardcoded
+    args.checkpoint_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
     # Load pretrained weights
     if args.checkpoint_path:
         print(f"Load pretrained weights")
-        nn.load_parameters(f"{args.checkpoint_path}.h5")
+        nn.load_parameters(f"{args.checkpoint_path}")       # with suffix .h5
 
     with open(f"./configs/{args.target}.yaml") as file:
         # Load target specific Hyper parameters
