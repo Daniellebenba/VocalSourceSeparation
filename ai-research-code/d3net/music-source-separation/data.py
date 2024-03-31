@@ -150,8 +150,8 @@ class MUSDBDataSource(DataSource):
         # uncomment
         # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"       # TODO: warning!!
         # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"
-        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/musdb18"
-        args.is_wav = False     # TODO: warning!!
+        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/musdb18"
+        args.is_wav = False     # TODO: warning!! put hardcoded since ar won't work need to check
         # **
         self.mus = musdb.DB(
             root=args.root,
