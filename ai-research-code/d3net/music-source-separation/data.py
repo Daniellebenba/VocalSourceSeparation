@@ -77,9 +77,9 @@ def load_datasources(parser, args):
     # todo Wraning this for test
     # args.data_source = "musdb"
     # args.data_source = "podcastmix_real"
-    # args.data_source = "podcastmix_synth"
+    args.data_source = "podcastmix_synth"
     # # args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference'
-    # args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'
+    args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'
 
     if args.data_source == "musdb":
         train_dataset = MUSDBDataSource(

@@ -159,7 +159,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         return offset, segment_frames
 
     def load_mono_random_segment(self, audio_signal, audio_length, audio_path, max_segment):
-        while audio_length - torch.count_nonzero(audio_signal) == audio_length:
+        while audio_length - np.count_nonzero(audio_signal) == audio_length:
             # If there is a seg, start point is set randomly
             offset, duration = self.compute_rand_offset_duration(
                 audio_length,
@@ -173,9 +173,10 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
                 frame_offset=offset,
                 num_frames=duration
             )
+            audio_signal = audio_signal.numpy()
         # convert to mono
         if len(audio_signal) == 2:
-            audio_signal = torch.mean(audio_signal, dim=0).unsqueeze(0)
+            audio_signal = np.mean(audio_signal, axis=0)[np.newaxis, ...]
         return audio_signal
 
     def load_non_silent_random_music(self, row):
@@ -190,7 +191,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         # info = torchaudio.info(audio_path)
         # music sample_rate
         length = int(row['length'])
-        audio_signal = torch.zeros(self.segment * self.original_sample_rate)
+        audio_signal = np.zeros(self.segment * self.original_sample_rate)
         # iterate until the segment is not silence
         audio_signal = self.load_mono_random_segment(audio_signal, length, row['music_path'],
                                                      self.segment * self.original_sample_rate)
@@ -201,20 +202,30 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         if seq_duration_samples > total_samples:
             # add zeros at beginning and at with random offset
             padding_offset = random.randint(0, seq_duration_samples - total_samples)
-            audio_signal = torch.nn.ConstantPad1d(
-                (
-                    padding_offset,
-                    seq_duration_samples - total_samples - padding_offset
-                ),
-                0
-            )(audio_signal)
+            padding = np.zeros(seq_duration_samples)
+            start_index = padding_offset
+            padding[start_index:start_index + total_samples] = audio_signal
+            audio_signal = padding
+
+            # padding_offset = random.randint(0, seq_duration_samples - total_samples)
+            # audio_signal = torch.nn.ConstantPad1d(
+            #     (
+            #         padding_offset,
+            #         seq_duration_samples - total_samples - padding_offset
+            #     ),
+            #     0
+            # )(audio_signal)
 
         return audio_signal
 
+    # def rms(self, audio):
+    #     """ computes the RMS of an audio signal
+    #     """
+    #     return torch.sqrt(torch.mean(audio ** 2))
+
     def rms(self, audio):
-        """ computes the RMS of an audio signal
-        """
-        return torch.sqrt(torch.mean(audio ** 2))
+        """Computes the RMS of an audio signal."""
+        return np.sqrt(np.mean(audio ** 2))
 
     def load_speechs(self, speech_idx):
         """
@@ -228,9 +239,10 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         buffers that starts with the beginning of a speech.
         Returns the shifted buffer with a length equal to segment.
         """
+        length = 264600
         speaker_csv_id = self.df_mix.iloc[speech_idx].speaker_id
         array_size = self.original_sample_rate * self.segment
-        speech_mix = torch.zeros(0)
+        speech_mix = np.zeros(0)
         speech_counter = 0
         while speech_counter < array_size:
             # file is shorter than segment, concatenate with more until
@@ -242,8 +254,10 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
             speech_signal, _ = torchaudio.load(
                 audio_path
             )
+            speech_signal = speech_signal.numpy()
             # add the speech to the buffer
-            speech_mix = torch.cat((speech_mix, speech_signal[0]))
+            # speech_mix = torch.cat((speech_mix, speech_signal[0]))
+            speech_mix = np.concatenate([speech_mix, speech_signal[0]])
             speech_counter += speech_signal.shape[-1]
 
         # we have a segment of at least self.segment length speech audio
@@ -271,7 +285,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         # we have a segment with the two speakers, the second in a random start.
         # now we randomly shift the array to pick the start
         offset = random.randint(0, array_size)
-        zeros_aux = torch.zeros(len(speech_mix))
+        zeros_aux = np.zeros(len(speech_mix))
         aux = speech_mix[:offset]
 
         zeros_aux[:len(speech_mix) - offset] = speech_mix[offset:len(speech_mix)]
@@ -299,6 +313,9 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         speech_signal = self.load_speechs(speech_idx)
         music_signal = self.load_non_silent_random_music(row_music)
 
+        # speech_signal = torch.from_numpy(speech_signal)
+        # music_signal = torch.from_numpy(music_signal)
+
         if not self.sample_rate == self.original_sample_rate:
             speech_signal = self.resampler.forward(speech_signal)
             music_signal = self.resampler.forward(music_signal)
@@ -322,14 +339,14 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
 
         # compute the mixture as the avg of both sources
         mixture = 0.5 * (sources_list[0] + sources_list[1])
-        mixture = torch.squeeze(mixture)
+        mixture = np.squeeze(mixture)
 
         # Stack sources
         sources = np.vstack(sources_list).astype(np.float64)       # todo: change type to float64? also need todo as in the real data
 
         # Convert sources to tensor
         # sources = torch.from_numpy(sources)       # we need numpy array
-        mixture = mixture.numpy().astype(np.float64)
+        mixture = mixture.astype(np.float64)
         if self.to_stereo:
             mixture = np.stack((mixture, mixture), axis=0)
 
