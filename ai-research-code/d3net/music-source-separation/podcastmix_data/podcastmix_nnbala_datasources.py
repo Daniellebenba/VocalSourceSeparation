@@ -55,19 +55,26 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         # declare dataframes
         self.speech_csv_path = os.path.join(self.csv_dir, 'speech.csv')
         self.music_csv_path = os.path.join(self.csv_dir, 'music.csv')
-        self.df_speech = pd.read_csv(self.speech_csv_path, engine='python')
+        self.mix_csv_path = os.path.join(self.csv_dir, f'{subset}.csv')
+
+        self.df_mix = pd.read_csv(self.mix_csv_path, engine='python')
+
+        # self.df_speech = pd.read_csv(self.speech_csv_path, engine='python')
 
         # dictionary of speakers
         self.speakers_dict = {}
-        for speaker_id in self.df_speech.speaker_id.unique():
-            self.speakers_dict[speaker_id] = self.df_speech.loc[
-                self.df_speech['speaker_id'] == speaker_id
+        for speaker_id in self.df_mix.speaker_id.unique():
+            self.speakers_dict[speaker_id] = self.df_mix.loc[
+                self.df_mix['speaker_id'] == speaker_id
                 ]
-        self.df_music = pd.read_csv(self.music_csv_path, engine='python')
+        # self.df_music = pd.read_csv(self.music_csv_path, engine='python')
 
         # initialize indexes
-        self.speech_inxs = list(range(len(self.df_speech)))
-        self.music_inxs = list(range(len(self.df_music)))
+        # self.speech_inxs = list(range(len(self.df_speech)))
+        # self.music_inxs = list(range(len(self.df_music)))
+
+        self.speech_inxs = list(range(len(self.df_mix)))
+        self.music_inxs = list(range(len(self.df_mix)))
 
         # declare the resolution of the reduction factor.
         # this will create N different gain values max
@@ -113,7 +120,9 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         torchaudio.set_audio_backend(backend='soundfile')
 
     def __len__(self):
-        return min([len(self.df_speech), len(self.df_music)])
+        # return min([len(self.df_speech), len(self.df_music)])
+        return len(self.df_mix)
+
 
     def compute_rand_offset_duration(self, original_num_frames, segment_frames):
         """ Computes a random offset and the number of frames to read from a file
@@ -213,7 +222,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         buffers that starts with the beginning of a speech.
         Returns the shifted buffer with a length equal to segment.
         """
-        speaker_csv_id = self.df_speech.iloc[speech_idx].speaker_id
+        speaker_csv_id = self.df_mix.iloc[speech_idx].speaker_id
         array_size = self.original_sample_rate * self.segment
         speech_mix = torch.zeros(0)
         speech_counter = 0
@@ -274,7 +283,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         speech_idx = self.speech_inxs[idx]
 
         # Get the row in speech dataframe
-        row_music = self.df_music.iloc[music_idx]
+        row_music = self.df_mix.iloc[music_idx]
         sources_list = []
 
         # We want to cleanly separate Speech, so its the first source
