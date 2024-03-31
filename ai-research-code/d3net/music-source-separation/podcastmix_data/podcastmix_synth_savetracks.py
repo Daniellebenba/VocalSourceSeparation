@@ -2,6 +2,7 @@ import os
 import pandas as pd
 # import random
 
+
 def load_all_mixtracks_synth():
     """Loads the specified dataset from commandline arguments
     Returns:
@@ -9,7 +10,7 @@ def load_all_mixtracks_synth():
     """
     seed = 0
     root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/metadata'
-    subs = ["train", "val", "test"]
+    subs = ["train", "test"]
     # sample_rate = 44100, original_sample_rate = 44100, segment = 6,  # 2,
     # download = False, samples_per_track = 64, source_augmentations = lambda audio: audio,
     # shuffle_tracks = False, multi_speakers = False,
@@ -30,13 +31,14 @@ def load_all_mixtracks_synth():
         df_music = df_music.sample(n, ignore_index=True, random_state=seed)
 
         # initialize indexes
-        speech_inxs = list(range(len(df_speech)))
-        music_inxs = list(range(len(df_music)))
+        # speech_inxs = list(range(len(df_speech)))
+        # music_inxs = list(range(len(df_music)))
 
         # random.shuffle(music_inxs)
         # random.shuffle(speech_inxs)
 
-        df_speech["index_merge"], df_music["index_merge"] = speech_inxs, music_inxs
+        # df_speech["index_merge"], df_music["index_merge"] = speech_inxs, music_inxs
+
         df = pd.concat([df_speech, df_music], axis=1)
 
         mix_csv_path = os.path.join(csv_dir, f'{sub}.csv')

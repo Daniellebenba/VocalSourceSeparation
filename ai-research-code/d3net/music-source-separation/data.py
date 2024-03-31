@@ -74,10 +74,12 @@ def load_datasources(parser, args):
         [globals()['_augment_' + aug] for aug in args.source_augmentations]
     )
 
-    # test:
+    # todo Wraning this for test
     # args.data_source = "musdb"
-    args.data_source = "podcastmix_real"
-    args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference'
+    # args.data_source = "podcastmix_real"
+    args.data_source = "podcastmix_synth"
+    # # args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference'
+    args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'
 
     if args.data_source == "musdb":
         train_dataset = MUSDBDataSource(
@@ -148,8 +150,8 @@ class MUSDBDataSource(DataSource):
         # uncomment
         # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"       # TODO: warning!!
         # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"
-        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/musdb18"
-        args.is_wav = False     # TODO: warning!!
+        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/musdb18"
+        args.is_wav = False     # TODO: warning!! put hardcoded since ar won't work need to check
         # **
         self.mus = musdb.DB(
             root=args.root,

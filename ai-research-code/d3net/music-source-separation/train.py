@@ -17,6 +17,7 @@ MSS Training code using D3Net.
 '''
 
 import os
+os.environ['NUMEXPR_MAX_THREADS'] = '1'
 import re
 import argparse
 import yaml
@@ -51,9 +52,9 @@ def train():
 
     # Get context.
     #*
-    args.context = 'cpu'    # uncomment
+    # args.context = 'cpu'    # TODO: warning  this for test uncomment
     ctx = get_extension_context(args.context, device_id=args.device_id)
-    ctx.device_id = '0'
+    # ctx.device_id = '0'     # TODO: warning  this for test uncomment
     comm = CommunicatorWrapper(ctx)
     nn.set_default_context(comm.ctx)
     ext = import_extension_module(args.context)
@@ -217,4 +218,6 @@ def train():
 
 
 if __name__ == '__main__':
+
+
     train()
