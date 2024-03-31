@@ -5,14 +5,14 @@ import random
 import numpy as np
 import os
 
-from .podcastmix_utils import PodcastMixDB, Resampler
+from .podcastmix_utils import PodcastMixDB, Resampler, PodcastDataSource
 from nnabla.utils.data_source import DataSource
 
 
 
 class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
     dataset_name = "PodcastMix-Synth"
-
+    data_source = PodcastDataSource.Synth
     # def __init__(self, csv_dir, sample_rate=44100, original_sample_rate=44100, segment=2,
     #              shuffle_tracks=False, multi_speakers=False):
 
@@ -25,6 +25,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
                  random_track_mix=False, dtype=np.float32, seed=42, rng=None,  # from origin MusDB
                  to_stereo: bool = True):
 
+        super(PodcastMixDataSourceSynth, self).__init__(shuffle=True)
 
         """
         train_set = PodcastMixDataloader(
@@ -35,7 +36,9 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         shuffle_tracks=True,
         multi_speakers=conf["training"]["multi_speakers"])
         """
+        # self.data_source = PodcastDataSource.synthetic
         self.csv_dir = os.path.join(args.root, "metadata", subset)
+        self.root = os.path.dirname(args.root)        # added
         self.segment = segment
         # sample_rate of the original files
         self.original_sample_rate = original_sample_rate
@@ -53,8 +56,8 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
             )
 
         # declare dataframes
-        self.speech_csv_path = os.path.join(self.csv_dir, 'speech.csv')
-        self.music_csv_path = os.path.join(self.csv_dir, 'music.csv')
+        # self.speech_csv_path = os.path.join(self.csv_dir, 'speech.csv')
+        # self.music_csv_path = os.path.join(self.csv_dir, 'music.csv')
         self.mix_csv_path = os.path.join(self.csv_dir, f'{subset}.csv')
 
         self.df_mix = pd.read_csv(self.mix_csv_path, engine='python')
@@ -97,6 +100,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
 
         # todo: support synth case!!!
         self.mus = PodcastMixDB(        # todo: chane to support synthetic
+            data_source=self.data_source,
             root=args.root,
             # df_tracks=[self.df_speech, self.df_music],      # todo: not sure wich dfs here
             is_wav=args.is_wav,
@@ -161,6 +165,8 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
                 audio_length,
                 max_segment
             )
+            # TODO Warning For tets NOW!! rmeove:
+            # audio_path = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/music/1000069.flac"
             # load the audio with the computed offsets
             audio_signal, _ = torchaudio.load(
                 audio_path,
@@ -230,7 +236,9 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
             # file is shorter than segment, concatenate with more until
             # is at least the same length
             row_speech = self.speakers_dict[speaker_csv_id].sample()
-            audio_path = row_speech['speech_path'].values[0]
+            audio_path = os.path.join(self.root, row_speech['speech_path'].values[0])
+            # TODO Warning for test now!!
+            # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/speech/p243_001_mic1.flac'
             speech_signal, _ = torchaudio.load(
                 audio_path
             )
@@ -352,6 +360,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
 class PodcastMixDataSourceReal(DataSource):
     # path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix_data/podcastmix_data-real-with-reference'
     dataset_name = "PodcastMix-RealWithRef"
+    data_source = PodcastDataSource.RealWithRef
 
     def __init__(self,
                  args, # from origin MusDB
@@ -383,6 +392,7 @@ class PodcastMixDataSourceReal(DataSource):
         self.random_track_mix = random_track_mix
 
         self.mus = PodcastMixDB(
+            data_source=self.data_source,
             root=args.root,
             # df_tracks=[self.df_mix],
             is_wav=args.is_wav,

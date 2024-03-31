@@ -8,6 +8,12 @@ import numpy as np
 import yaml
 import musdb
 import os
+from enum import Enum
+
+
+class PodcastDataSource(Enum):
+    RealWithRef = "real_with_ref"
+    Synth = "synth"
 
 
 class Resampler(torch.nn.Module):
@@ -303,8 +309,6 @@ class Resampler(torch.nn.Module):
             )
 
 
-
-
 class PodcastMixDB(object):
     """
     The musdb DB Object implemented for PodcastMix data !!
@@ -366,6 +370,7 @@ class PodcastMixDB(object):
     def __init__(
         self,
         root,
+        data_source: PodcastDataSource,
         # df_tracks: List[pd.DataFrame],      # todo change to rwad inside the df
         setup_file=None,
         is_wav=False,
@@ -384,7 +389,7 @@ class PodcastMixDB(object):
         #             raise RuntimeError("Variable `MUSDB_PATH` has not been set.")
         # else:
         #     self.root = os.path.expanduser(root)
-
+        self.data_source = data_source
         self.root = os.path.expanduser(root)
         # self.root = os.path.dirname(os.path.dirname(self.root))
 
@@ -469,61 +474,107 @@ class PodcastMixDB(object):
         if subsets != ["train"] and split is not None:
             raise RuntimeError("Subset has to set to `train` when split is used")
 
+        if self.data_source is PodcastDataSource.Synth:
+            tracks = self.get_tracks_synth(subsets)
 
-        tracks = []
-        for subset in subsets:
-            subset_folder = op.join(self.root, subset, f"{subset}.csv")      # todo here change if not metadata then add subdir based on subset
-            df = pd.read_csv(subset_folder, engine='python', delimiter=';')         # create .csv files of the mixes for synthetic
-            for i, row in df.iterrows():
-            # for _, folders, files in os.walk(subset_folder):
-                # if self.is_wav:
-                #     # parse pcm tracks and sort by name
-                #     for track_name in sorted(folders):
-                #         if subset == "train":
-                #             if (
-                #                 split == "train"
-                #                 and track_name in self.setup["validation_tracks"]
-                #             ):
-                #                 continue
-                #             elif (
-                #                 split == "valid"
-                #                 and track_name not in self.setup["validation_tracks"]
-                #             ):
-                #                 continue
-                #
-                #         track_folder = op.join(subset_folder, track_name)
-                        # create new mus track
-                        track = musdb.MultiTrack(
-                            name=row["song"],
-                            path=os.path.join(self.root, row["mix_path"]),
-                            subset=subset,
-                            is_wav=self.is_wav,
-                            stem_id=self.setup["stem_ids"]["mix"],
-                            sample_rate=self.sample_rate,
-                        )
+        elif self.data_source is PodcastDataSource.RealWithRef:
+            tracks = self.get_tracks_real(subsets)
 
-                        # add sources to track
-                        sources = {}
-                        for src in self.sources_names:
-                            path = os.path.join(self.root, row[f"{src}_path"])       # todo: add absolute path
-                            # create source object
-                            if os.path.exists(path):
-                                sources[src] = musdb.Source(
-                                    track,
-                                    name=src,
-                                    path=path,
-                                    stem_id=self.setup["stem_ids"][src],
-                                    sample_rate=self.sample_rate,
-                                )
-                        track.sources = sources
-                        track.targets = self.create_targets(track)
-
-                        # add track to list of tracks
-                        tracks.append(track)
-
+        else:
+            raise Exception("not supported podcastmix data source")
 
         return tracks
 
+    def get_tracks_synth(self, subsets):
+        tracks = []
+        for subset in subsets:
+            subset_folder = op.join(self.root, "metadata", subset, f"{subset}.csv")  # todo here change if not metadata then add subdir based on subset
+            df = pd.read_csv(subset_folder, engine='python')  # create .csv files of the mixes for synthetic
+            for i, row in df.iterrows():
+                track = musdb.MultiTrack(
+                    name=row["speech_ID"]+"_"+row["name"],
+                    path=os.path.join(self.root, row["speech_path"]),
+                    subset=subset,
+                    is_wav=self.is_wav,
+                    stem_id=self.setup["stem_ids"]["mix"],
+                    sample_rate=self.sample_rate,
+                )
+
+                # add sources to track
+                sources = {}
+                for src in self.sources_names:
+                    path = os.path.join(self.root, row[f"{src}_path"])  # todo: add absolute path
+                    # create source object
+                    if os.path.exists(path):
+                        sources[src] = musdb.Source(
+                            track,
+                            name=src,
+                            path=path,
+                            stem_id=self.setup["stem_ids"][src],
+                            sample_rate=self.sample_rate,
+                        )
+                track.sources = sources
+                track.targets = self.create_targets(track)
+
+                # add track to list of tracks
+                tracks.append(track)
+        return tracks
+
+
+    def get_tracks_real(self, subsets):
+        tracks = []
+        assert len(subsets) == 1
+        subset = subsets[0]
+        subset = "metadata"
+        subset_folder = op.join(self.root, subset, f"{subset}.csv")      # todo here change if not metadata then add subdir based on subset
+        df = pd.read_csv(subset_folder, engine='python', delimiter=';')         # create .csv files of the mixes for synthetic
+        for i, row in df.iterrows():
+        # for _, folders, files in os.walk(subset_folder):
+            # if self.is_wav:
+            #     # parse pcm tracks and sort by name
+            #     for track_name in sorted(folders):
+            #         if subset == "train":
+            #             if (
+            #                 split == "train"
+            #                 and track_name in self.setup["validation_tracks"]
+            #             ):
+            #                 continue
+            #             elif (
+            #                 split == "valid"
+            #                 and track_name not in self.setup["validation_tracks"]
+            #             ):
+            #                 continue
+            #
+            #         track_folder = op.join(subset_folder, track_name)
+                    # create new mus track
+                    track = musdb.MultiTrack(
+                        name=row["song"],
+                        path=os.path.join(self.root, row["mix_path"]),
+                        subset=subset,
+                        is_wav=self.is_wav,
+                        stem_id=self.setup["stem_ids"]["mix"],
+                        sample_rate=self.sample_rate,
+                    )
+
+                    # add sources to track
+                    sources = {}
+                    for src in self.sources_names:
+                        path = os.path.join(self.root, row[f"{src}_path"])       # todo: add absolute path
+                        # create source object
+                        if os.path.exists(path):
+                            sources[src] = musdb.Source(
+                                track,
+                                name=src,
+                                path=path,
+                                stem_id=self.setup["stem_ids"][src],
+                                sample_rate=self.sample_rate,
+                            )
+                    track.sources = sources
+                    track.targets = self.create_targets(track)
+
+                    # add track to list of tracks
+                    tracks.append(track)
+        return tracks
 
 def mono_to_stereo(x):
     if len(x.shape) == 1:  # mono to stereo
