@@ -526,8 +526,9 @@ class PodcastMixDB(object):
         assert len(subsets) == 1
         subset = subsets[0]
         subset = "metadata"
-        subset_folder = op.join(self.root, subset, f"{subset}.csv")      # todo here change if not metadata then add subdir based on subset
-        df = pd.read_csv(subset_folder, engine='python', delimiter=';')         # create .csv files of the mixes for synthetic
+        path = op.join(self.root, subset, f"{subset}.csv")      # todo here change if not metadata then add subdir based on subset
+        root = os.path.dirname(os.path.dirname(self.root))
+        df = pd.read_csv(path, engine='python', delimiter=';')         # create .csv files of the mixes for synthetic
         for i, row in df.iterrows():
         # for _, folders, files in os.walk(subset_folder):
             # if self.is_wav:
@@ -549,7 +550,7 @@ class PodcastMixDB(object):
                     # create new mus track
                     track = musdb.MultiTrack(
                         name=row["song"],
-                        path=os.path.join(self.root, row["mix_path"]),
+                        path=os.path.join(root, row["mix_path"]),
                         subset=subset,
                         is_wav=self.is_wav,
                         stem_id=self.setup["stem_ids"]["mix"],
@@ -559,7 +560,7 @@ class PodcastMixDB(object):
                     # add sources to track
                     sources = {}
                     for src in self.sources_names:
-                        path = os.path.join(self.root, row[f"{src}_path"])       # todo: add absolute path
+                        path = os.path.join(root, row[f"{src}_path"])       # todo: add absolute path
                         # create source object
                         if os.path.exists(path):
                             sources[src] = musdb.Source(
