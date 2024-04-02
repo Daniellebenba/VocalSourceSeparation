@@ -111,10 +111,10 @@ if __name__ == '__main__':
                         type=str, help='Execution on CUDA')
     args, _ = parser.parse_known_args()
 
-    args.context = 'cpu'    # TODO: warning  this for test uncomment
+    # args.context = 'cpu'    # TODO: warning  this for test uncomment
     # Set NNabla context and Dynamic graph execution
     ctx = get_extension_context(args.context)
-    ctx.device_id = '0'     # TODO: warning  this for test uncomment
+    # ctx.device_id = '0'     # TODO: warning  this for test uncomment
     nn.set_default_context(ctx)
 
     args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference"  # TODO: warning!!
