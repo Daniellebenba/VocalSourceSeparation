@@ -206,7 +206,7 @@ def train():
             monitor_time.add(epoch)
 
             # save intermediate weights
-            path = f"{os.path.join(args.output, args.target)}.h5"
+            path = f"{os.path.join(args.output, args.target)}_epoch{epoch}.h5"
             print(f"finish epoch {epoch}, loss: {training_loss}, saving checkpoint {path}")
             nn.save_parameters(path)
 
