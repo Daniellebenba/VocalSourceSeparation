@@ -148,8 +148,8 @@ class MUSDBDataSource(DataSource):
         self.random_track_mix = random_track_mix
         # **
         # uncomment
-        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"       # TODO: warning!!
-        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"
+        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"
+        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"  # TODO: warning!!
         # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/musdb18"
         args.is_wav = False     # TODO: warning!! put hardcoded since ar won't work need to check
         # **

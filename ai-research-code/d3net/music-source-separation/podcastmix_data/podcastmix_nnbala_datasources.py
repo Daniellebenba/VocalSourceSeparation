@@ -165,8 +165,9 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
                 audio_length,
                 max_segment
             )
-            # TODO Warning For tets NOW!! rmeove:
+
             # audio_path = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/music/1000069.flac"
+            # audio_path = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/problematic/689873.flac" # TODO Warning For tets NOW!! rmeove:
             # load the audio with the computed offsets
             audio_signal, _ = torchaudio.load(
                 audio_path,
@@ -190,7 +191,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         """
         # info = torchaudio.info(audio_path)
         # music sample_rate
-        length = int(row['length'])
+        length = int(row['length.1'])
         audio_signal = np.zeros(self.segment * self.original_sample_rate)
         # iterate until the segment is not silence
         audio_signal = self.load_mono_random_segment(audio_signal, length, row['music_path'],
@@ -249,8 +250,10 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
             # is at least the same length
             row_speech = self.speakers_dict[speaker_csv_id].sample()
             audio_path = os.path.join(self.root, row_speech['speech_path'].values[0])
-            # TODO Warning for test now!!
+
             # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/speech/p243_001_mic1.flac'
+            # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/problematic/p252_068_mic1.flac' # TODO Warning for test now!!
+
             speech_signal, _ = torchaudio.load(
                 audio_path
             )

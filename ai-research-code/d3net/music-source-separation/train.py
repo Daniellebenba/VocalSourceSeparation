@@ -17,7 +17,7 @@ MSS Training code using D3Net.
 '''
 
 import os
-os.environ['NUMEXPR_MAX_THREADS'] = '1'
+# os.environ['NUMEXPR_MAX_THREADS'] = '1'
 import re
 import argparse
 import yaml
