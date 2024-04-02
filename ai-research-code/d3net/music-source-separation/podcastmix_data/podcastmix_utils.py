@@ -1,4 +1,5 @@
 from scipy import special
+import warnings
 from typing import List
 import collections
 import torch
@@ -9,7 +10,8 @@ import yaml
 import musdb
 import os
 from enum import Enum
-
+import stempeg
+from museval import TrackStore, evaluate
 
 class PodcastDataSource(Enum):
     RealWithRef = "real_with_ref"
@@ -573,7 +575,8 @@ class PodcastMixDB(object):
                                 track,
                                 name=src,
                                 path=path,
-                                stem_id=self.setup["stem_ids"][src],
+                                # stem_id=self.setup["stem_ids"][src],        # todo here change the index stem to 0
+                                stem_id=self.setup["stem_ids"]["mix"],        # todo here change the index stem to 0
                                 sample_rate=self.sample_rate,
                             )
                     track.sources = sources
@@ -589,3 +592,168 @@ def mono_to_stereo(x):
     return x
 
 
+
+
+
+def save_estimates(user_estimates, track, estimates_dir, write_stems=False):
+    """Writes `user_estimates` to disk while recreating the musdb file structure in that folder.
+
+    Parameters
+    ==========
+    user_estimates : Dict[np.array]
+        the target estimates.
+    track : Track,
+        musdb track object
+    estimates_dir : str,
+        output folder name where to save the estimates.
+    """
+
+    track_estimate_dir = os.path.join(estimates_dir, track.subset, track.name)
+    if not os.path.exists(track_estimate_dir):
+        os.makedirs(track_estimate_dir)
+
+    # write out tracks to disk
+    if write_stems:
+        pass
+        # to be implemented
+    else:
+        for target, estimate in list(user_estimates.items()):
+            target_path = os.path.join(track_estimate_dir, target + ".wav")
+            stempeg.write_audio(
+                path=target_path, data=estimate, sample_rate=track.rate
+            )
+
+
+
+def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.0, hop=1.0):
+    """Compute all bss_eval metrics for the musdb track and estimated signals,
+    given by a `user_estimates` dict.
+
+    Parameters
+    ----------
+    track : Track
+        musdb track object loaded using musdb
+    estimated_sources : Dict
+        dictionary, containing the user estimates as np.arrays.
+    output_dir : str
+        path to output directory used to save evaluation results. Defaults to
+        `None`, meaning no evaluation files will be saved.
+    mode : str
+        bsseval version number. Defaults to 'v4'.
+    win : int
+        window size in
+
+    Returns
+    -------
+    scores : TrackStore
+        scores object that holds the framewise and global evaluation scores.
+    """
+
+    audio_estimates = []
+    audio_reference = []
+
+    # make sure to always build the list in the same order
+    # therefore track.targets is an OrderedDict
+    eval_targets = []  # save the list of target names to be evaluated
+    for key, target in list(track.targets.items()):
+        try:
+            # try to fetch the audio from the user_results of a given key
+            user_estimates[key]
+        except KeyError:
+            # ignore wrong key and continue
+            continue
+
+        # append this target name to the list of target to evaluate
+        eval_targets.append(key)
+
+    data = TrackStore(win=win, hop=hop, track_name=track.name)
+
+    # check if vocals and accompaniment is among the targets
+    has_acc = all(x in eval_targets for x in ["vocals", "accompaniment"])
+    if has_acc:
+        # remove accompaniment from list of targets, because
+        # the voc/acc scenario will be evaluated separately
+        eval_targets.remove("accompaniment")
+
+    if len(eval_targets) >= 1:#2:
+        # compute evaluation of remaining targets
+        for target in eval_targets:
+            audio_estimates.append(user_estimates[target])
+            audio_reference.append(track.targets[target].audio)
+
+        SDR, ISR, SIR, SAR = evaluate(
+            audio_reference,
+            audio_estimates,
+            win=int(win * track.rate),
+            hop=int(hop * track.rate),
+            mode=mode,
+        )
+
+        # iterate over all evaluation results except for vocals
+        for i, target in enumerate(eval_targets):
+            if target == "vocals" and has_acc:
+                continue
+
+            values = {
+                "SDR": SDR[i].tolist(),
+                "SIR": SIR[i].tolist(),
+                "ISR": ISR[i].tolist(),
+                "SAR": SAR[i].tolist(),
+            }
+
+            data.add_target(target_name=target, values=values)
+    elif not has_acc:
+        warnings.warn(
+            UserWarning(
+                "Incorrect usage of BSSeval : at least two estimates must be provided. Target score will be empty."
+            )
+        )
+
+    # add vocal accompaniment targets later
+    if has_acc:
+        # add vocals and accompaniments as a separate scenario
+        eval_targets = ["vocals", "accompaniment"]
+
+        audio_estimates = []
+        audio_reference = []
+
+        for target in eval_targets:
+            audio_estimates.append(user_estimates[target])
+            audio_reference.append(track.targets[target].audio)
+
+        SDR, ISR, SIR, SAR = evaluate(
+            audio_reference,
+            audio_estimates,
+            win=int(win * track.rate),
+            hop=int(hop * track.rate),
+            mode=mode,
+        )
+
+        # iterate over all targets
+        for i, target in enumerate(eval_targets):
+            values = {
+                "SDR": SDR[i].tolist(),
+                "SIR": SIR[i].tolist(),
+                "ISR": ISR[i].tolist(),
+                "SAR": SAR[i].tolist(),
+            }
+
+            data.add_target(target_name=target, values=values)
+
+    if output_dir:
+        # validate against the schema
+        data.validate()
+
+        try:
+            subset_path = op.join(output_dir, track.subset)
+
+            if not op.exists(subset_path):
+                os.makedirs(subset_path)
+
+            with open(op.join(subset_path, track.name) + ".json", "w+") as f:
+                f.write(data.json)
+
+        except IOError:
+            pass
+
+    return data
