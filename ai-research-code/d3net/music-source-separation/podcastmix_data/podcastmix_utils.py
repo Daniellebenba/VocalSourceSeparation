@@ -16,6 +16,9 @@ class PodcastDataSource(Enum):
     Synth = "synth"
 
 
+mus_podcast_track_mapping = {"vocals": "speech", "music": "music"}
+
+
 class Resampler(torch.nn.Module):
     """
     Efficiently resample audio signals
@@ -412,9 +415,11 @@ class PodcastMixDB(object):
             raise Exception("Error not supported for now dataset downloading")
 
         self.sample_rate = sample_rate
-        self.setup["sources"] = {'speech': 'speech', 'music': 'music'}
-        self.setup["targets"] = {'speech': {'speech': 1}}
-        self.setup["stem_ids"] = {'mix': 0, 'speech': 1, 'music': 2}        # {'mixture': 0, 'drums': 1, 'bass': 2, 'other': 3, 'vocals': 4}
+        # self.setup["sources"] = {'speech': 'speech', 'music': 'music'}
+        self.setup["sources"] = {'vocals': 'vocals', 'music': 'music'}
+        # self.setup["targets"] = {'speech': {'speech': 1}}
+        self.setup["targets"] = {'vocals': {'vocals': 1}}
+        self.setup["stem_ids"] = {'mix': 0, 'vocals': 1, 'music': 2}        # {'mixture': 0, 'drums': 1, 'bass': 2, 'other': 3, 'vocals': 4}
 
         self.sources_names = list(self.setup["sources"].keys())
         self.targets_names = list(self.setup["targets"].keys())
@@ -560,7 +565,8 @@ class PodcastMixDB(object):
                     # add sources to track
                     sources = {}
                     for src in self.sources_names:
-                        path = os.path.join(root, row[f"{src}_path"])       # todo: add absolute path
+                        key = mus_podcast_track_mapping[src]
+                        path = os.path.join(root, row[f"{key}_path"])       # todo: add absolute path
                         # create source object
                         if os.path.exists(path):
                             sources[src] = musdb.Source(
