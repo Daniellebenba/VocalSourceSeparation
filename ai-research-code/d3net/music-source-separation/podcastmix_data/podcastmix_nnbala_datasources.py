@@ -249,7 +249,8 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
             # file is shorter than segment, concatenate with more until
             # is at least the same length
             row_speech = self.speakers_dict[speaker_csv_id].sample()
-            audio_path = os.path.join(self.root, row_speech['speech_path'].values[0])
+            # audio_path = os.path.join(self.root, row_speech['speech_path'].values[0])
+            audio_path = row_speech['speech_path'].values[0]        # TODO: warning data saved within the run
 
             # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/speech/p243_001_mic1.flac'
             # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/problematic/p252_068_mic1.flac' # TODO Warning for test now!!

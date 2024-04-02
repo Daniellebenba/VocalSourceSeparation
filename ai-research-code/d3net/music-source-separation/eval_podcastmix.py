@@ -31,8 +31,9 @@ import librosa
 
 from filter import apply_mwf
 from util import stft2time_domain, model_separate
-from podcastmix_data.podcastmix_utils import PodcastMixDB
-
+from podcastmix_data.podcastmix_utils import PodcastMixDB, PodcastDataSource
+from podcastmix_data.podcastmix_nnbala_datasources import PodcastMixDataSourceReal, PodcastMixDataSourceSynth
+from podcastmix_data.podcastmix_utils import mono_to_stereo
 
 def separate_and_evaluate(
     track,
@@ -43,7 +44,7 @@ def separate_and_evaluate(
 
     fft_size, hop_size, n_channels = 4096, 1024, 2
 
-    audio = track.audio
+    audio = track.audio[..., np.newaxis]
 
     for i in range(audio.shape[1]):
         stft = librosa.stft(audio[:, i].flatten(),
@@ -63,8 +64,8 @@ def separate_and_evaluate(
 
     for target in targets:
         # Load the model weights for corresponding target
-        nn.load_parameters(f"{os.path.join(model_dir, target)}.h5")
-        with open(f"./configs/{target}.yaml") as file:
+        nn.load_parameters(os.path.abspath(f"{os.path.join('..', model_dir, target)}.h5"))
+        with open(os.path.abspath(os.path.join("..", f"./configs/{target}.yaml"))) as file:
             # Load target specific Hyper parameters
             hparams = yaml.load(file, Loader=yaml.FullLoader)
         with nn.parameter_scope(target):
@@ -91,15 +92,16 @@ if __name__ == '__main__':
     # Evaluation settings
     parser = argparse.ArgumentParser(
         description='PodcastMix Evaluation', add_help=False)
+    parser.add_argument('--data-source', type=str, default="podcastmix_real",
+                        help='Choose data source: podcastmix_real / podcastmix_synth')
     parser.add_argument('--model-dir', '-m', type=str,
                         default='./d3net-mss', help='path to the directory of pretrained models.')
-    parser.add_argument('--targets', nargs='+', default=['speech'],
+    parser.add_argument('--targets', nargs='+', default=['vocals'],
                         type=str, help='provide targets to be processed. If none, all available targets will be computed')
     parser.add_argument('--out-dir', type=str, default=None,
                         help='Path to save musdb estimates and museval results')
     parser.add_argument('--root', type=str, help='Path to PodcastMix')
-    parser.add_argument('--is-real', type=bool, default=False,
-                        help='PodcastMix Real with Ref, else use Synthetic data')
+
     parser.add_argument('--subset', type=str, default='test',
                         help='PodcastMix subset (`train`/`val`/`test`)')        # if is real won't change nothing
     parser.add_argument('--cores', type=int, default=1)
@@ -109,25 +111,42 @@ if __name__ == '__main__':
                         type=str, help='Execution on CUDA')
     args, _ = parser.parse_known_args()
 
+    args.context = 'cpu'    # TODO: warning  this for test uncomment
     # Set NNabla context and Dynamic graph execution
     ctx = get_extension_context(args.context)
+    ctx.device_id = '0'     # TODO: warning  this for test uncomment
     nn.set_default_context(ctx)
 
-    if args.is_real:
+    args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference"  # TODO: warning!!
+
+    if args.data_source == "podcastmix_synth":
         mus = PodcastMixDB(
+            data_source=PodcastDataSource.Synth,
             root=args.root,
             download=args.root is None,
             subsets="metadata",
             is_wav=args.is_wav
         )
-    else:
+
+    elif args.data_source == "podcastmix_real":
         mus = PodcastMixDB(
+            data_source=PodcastDataSource.RealWithRef,
             root=args.root,
             download=args.root is None,
             subsets=args.subset,
             is_wav=args.is_wav
         )
+    else:
+        raise Exception(f"data source not supported: podcastmix_synth or podcastmix_real solely")
 
+    # if args.data_source == "podcastmix_synth":
+    #     train_dataset = PodcastMixDataSourceSynth(
+    #         random_track_mix=True, args=args)
+    # elif args.data_source == "podcastmix_real":
+    #     train_dataset = PodcastMixDataSourceReal(
+    #         random_track_mix=True, args=args)
+    # else:
+    #     raise Exception("not supported data source, choose musdb/ podcastmix_real/ podcastmix_synth only!")
 
     if args.cores > 1:
         pool = multiprocessing.Pool(args.cores)
