@@ -31,9 +31,10 @@ import librosa
 
 from filter import apply_mwf
 from util import stft2time_domain, model_separate
-from podcastmix_data.podcastmix_utils import PodcastMixDB, PodcastDataSource
+from podcastmix_data.podcastmix_utils import PodcastMixDB, PodcastDataSource, save_estimates, eval_podcast_track
 from podcastmix_data.podcastmix_nnbala_datasources import PodcastMixDataSourceReal, PodcastMixDataSourceSynth
 from podcastmix_data.podcastmix_utils import mono_to_stereo
+
 
 def separate_and_evaluate(
     track,
@@ -41,7 +42,6 @@ def separate_and_evaluate(
     targets,
     output_dir
 ):
-
     fft_size, hop_size, n_channels = 4096, 1024, 2
 
     audio = track.audio[..., np.newaxis]
@@ -80,9 +80,10 @@ def separate_and_evaluate(
         estimates[target] = stft2time_domain(out_stfts[target], hop_size)
 
     if output_dir:
-        mus.save_estimates(estimates, track, output_dir)
+        save_estimates(estimates, track, output_dir)
 
-    scores = museval.eval_mus_track(
+    # scores = museval.eval_mus_track(
+    scores = eval_podcast_track(
         track, estimates, output_dir=output_dir
     )
     return scores
@@ -111,10 +112,10 @@ if __name__ == '__main__':
                         type=str, help='Execution on CUDA')
     args, _ = parser.parse_known_args()
 
-    # args.context = 'cpu'    # TODO: warning  this for test uncomment
+    args.context = 'cpu'    # TODO: warning  this for test uncomment
     # Set NNabla context and Dynamic graph execution
     ctx = get_extension_context(args.context)
-    # ctx.device_id = '0'     # TODO: warning  this for test uncomment
+    ctx.device_id = '0'     # TODO: warning  this for test uncomment
     nn.set_default_context(ctx)
 
     args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference"  # TODO: warning!!
