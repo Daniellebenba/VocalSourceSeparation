@@ -193,8 +193,10 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         # music sample_rate
         length = int(row['length.1'])
         audio_signal = np.zeros(self.segment * self.original_sample_rate)
+
         # iterate until the segment is not silence
-        audio_signal = self.load_mono_random_segment(audio_signal, length, row['music_path'],
+        audio_path = os.path.join(os.path.dirname(self.root), row['music_path'])
+        audio_signal = self.load_mono_random_segment(audio_signal, length, audio_path,
                                                      self.segment * self.original_sample_rate)
 
         # zero pad if the size is smaller than seq_duration
@@ -228,7 +230,7 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         """Computes the RMS of an audio signal."""
         return np.sqrt(np.mean(audio ** 2))
 
-    def load_speechs(self, speech_idx):
+    def load_speechs(self, speech_idx, sample=True):
         """
         concatenates random speech files from the same speaker as speech_idx until
         obtaining a buffer with a length of at least the lenght of the
@@ -248,9 +250,14 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         while speech_counter < array_size:
             # file is shorter than segment, concatenate with more until
             # is at least the same length
-            row_speech = self.speakers_dict[speaker_csv_id].sample()
-            # audio_path = os.path.join(self.root, row_speech['speech_path'].values[0])
-            audio_path = row_speech['speech_path'].values[0]        # TODO: warning data saved within the run
+            if sample:
+                row_speech = self.speakers_dict[speaker_csv_id].sample().iloc[0]
+            else:
+                row_speech = self.df_mix.iloc[speech_idx]
+
+            path_dir = os.path.dirname(self.root)  # todo warning change here
+            audio_path = os.path.join(path_dir, row_speech['speech_path'])
+            # audio_path = row_speech['speech_path'].values[0]        # TODO: warning data saved within the run
 
             # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/speech/p243_001_mic1.flac'
             # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/problematic/p252_068_mic1.flac' # TODO Warning for test now!!
@@ -305,6 +312,8 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         #     random.shuffle(self.speech_inxs)
 
         # get corresponding index from the list
+        idx = idx // self.original_sample_rate
+
         music_idx = self.music_inxs[idx]
         speech_idx = self.speech_inxs[idx]
 
@@ -369,6 +378,61 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
     def _get_data(self, position):
         return self[position]
 
+
+    def get_data_by_track(self, track):
+        df_mix = self.df_mix
+        idx = df_mix[df_mix["speech_path"].apply(lambda x: x.split("/")[-1]) == track.path.split("/")[-1]].index[0]
+
+        music_idx = self.music_inxs[idx]
+        speech_idx = self.speech_inxs[idx]
+
+        # Get the row in speech dataframe
+        row_music = self.df_mix.iloc[music_idx]
+        sources_list = []
+
+        # We want to cleanly separate Speech, so its the first source
+        # in the sources_list
+        speech_signal = self.load_speechs(speech_idx, sample=False)
+        music_signal = self.load_non_silent_random_music(row_music)
+
+        # speech_signal = torch.from_numpy(speech_signal)
+        # music_signal = torch.from_numpy(music_signal)
+
+        if not self.sample_rate == self.original_sample_rate:
+            speech_signal = self.resampler.forward(speech_signal)
+            music_signal = self.resampler.forward(music_signal)
+
+        # gain based on RMS in order to have RMS(speech_signal) >= RMS(music_singal)
+        reduction_factor = self.rms(speech_signal) / self.rms(music_signal)
+        # now we know that rms(r * music_signal) == rms(speech_signal)
+        if self.shuffle_tracks:
+            # random gain for training and validation
+            music_gain = random.uniform(1 / self.denominator_gain, 1) * reduction_factor
+        else:
+            # fixed gain for testing
+            music_gain = self.gain_ramp[idx % len(self.gain_ramp)] * reduction_factor
+
+        # multiply the music by the gain factor and add to the sources_list
+        music_signal = music_gain * music_signal
+
+        # append sources:
+        sources_list.append(speech_signal)
+        sources_list.append(music_signal)
+
+        # compute the mixture as the avg of both sources
+        mixture = 0.5 * (sources_list[0] + sources_list[1])
+        mixture = np.squeeze(mixture)
+
+        # Stack sources
+        sources = np.vstack(sources_list).astype(np.float64)       # todo: change type to float64? also need todo as in the real data
+
+        # Convert sources to tensor
+        # sources = torch.from_numpy(sources)       # we need numpy array
+        mixture = mixture.astype(np.float64)
+        if self.to_stereo:
+            mixture = np.stack((mixture, mixture), axis=0)
+
+        return mixture, sources
 
     def reset(self):
         if self._shuffle:

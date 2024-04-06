@@ -35,16 +35,30 @@ from podcastmix_data.podcastmix_utils import PodcastMixDB, PodcastDataSource, sa
 from podcastmix_data.podcastmix_nnbala_datasources import PodcastMixDataSourceReal, PodcastMixDataSourceSynth
 from podcastmix_data.podcastmix_utils import mono_to_stereo
 
+FLAG_LOCAL = True           # TODO: warning for test locally, change to False when running
 
 def separate_and_evaluate(
     track,
     model_dir,
     targets,
-    output_dir
+    output_dir,
+    data_source: PodcastDataSource,
+    dataset=None
 ):
     fft_size, hop_size, n_channels = 4096, 1024, 2
+    if data_source is PodcastDataSource.Synth:
+        assert dataset is not None
+        # data_source = PodcastMixDataSourceSynth()
+        # audio = track.audio[..., np.newaxis]
+        audio, sources = dataset.get_data_by_track(track)
+        audio = audio[..., np.newaxis]
 
-    audio = track.audio[..., np.newaxis]
+
+    elif data_source is PodcastDataSource.RealWithRef:
+        audio = track.audio[..., np.newaxis]
+
+    else:
+        raise Exception(f"Data source not supported, PodcastMix Real or Synthetic only")
 
     for i in range(audio.shape[1]):
         stft = librosa.stft(audio[:, i].flatten(),
@@ -64,8 +78,8 @@ def separate_and_evaluate(
 
     for target in targets:
         # Load the model weights for corresponding target
-        nn.load_parameters(os.path.abspath(f"{os.path.join('..', model_dir, target)}.h5"))
-        with open(os.path.abspath(os.path.join("..", f"./configs/{target}.yaml"))) as file:
+        nn.load_parameters(os.path.abspath(f"{os.path.join(model_dir, target)}.h5"))
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"configs/{target}.yaml")) as file:
             # Load target specific Hyper parameters
             hparams = yaml.load(file, Loader=yaml.FullLoader)
         with nn.parameter_scope(target):
@@ -93,6 +107,7 @@ if __name__ == '__main__':
     # Evaluation settings
     parser = argparse.ArgumentParser(
         description='PodcastMix Evaluation', add_help=False)
+
     parser.add_argument('--data-source', type=str, default="podcastmix_real",
                         help='Choose data source: podcastmix_real / podcastmix_synth')
     parser.add_argument('--model-dir', '-m', type=str,
@@ -112,22 +127,35 @@ if __name__ == '__main__':
                         type=str, help='Execution on CUDA')
     args, _ = parser.parse_known_args()
 
-    args.context = 'cpu'    # TODO: warning  this for test uncomment
+    if FLAG_LOCAL:
+        args.context = 'cpu'
     # Set NNabla context and Dynamic graph execution
     ctx = get_extension_context(args.context)
-    ctx.device_id = '0'     # TODO: warning  this for test uncomment
+
+    if FLAG_LOCAL:
+        ctx.device_id = '0'
+
     nn.set_default_context(ctx)
 
-    args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference"  # TODO: warning!!
+    if FLAG_LOCAL:
+        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference"
+        args.data_source = "podcastmix_real"
+
+        args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth"
+        args.data_source = "podcastmix_synth"
+        args.model_dir = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/"
 
     if args.data_source == "podcastmix_synth":
-        mus = PodcastMixDB(
-            data_source=PodcastDataSource.Synth,
-            root=args.root,
-            download=args.root is None,
-            subsets="metadata",
-            is_wav=args.is_wav
-        )
+        # mus = PodcastMixDB(
+        #     data_source=PodcastDataSource.Synth,
+        #     root=args.root,
+        #     download=args.root is None,
+        #     subsets="test",
+        #     is_wav=args.is_wav
+        # )
+        data_source = PodcastDataSource.Synth
+        test_dataset = PodcastMixDataSourceSynth(subset="test", random_track_mix=False, args=args, samples_per_track=1, to_stereo=False)
+        mus = test_dataset.mus
 
     elif args.data_source == "podcastmix_real":
         mus = PodcastMixDB(
@@ -137,6 +165,7 @@ if __name__ == '__main__':
             subsets=args.subset,
             is_wav=args.is_wav
         )
+        data_source = PodcastDataSource.RealWithRef
     else:
         raise Exception(f"data source not supported: podcastmix_synth or podcastmix_real solely")
 
@@ -158,7 +187,9 @@ if __name__ == '__main__':
                     separate_and_evaluate,
                     model_dir=args.model_dir,
                     targets=args.targets,
-                    output_dir=args.out_dir
+                    output_dir=args.out_dir,
+                    data_source=data_source,
+                    dataset=test_dataset
                 ),
                 iterable=mus.tracks,
                 chunksize=1
@@ -170,12 +201,14 @@ if __name__ == '__main__':
             results.add_track(scores)
     else:
         results = museval.EvalStore()
-        for track in tqdm.tqdm(mus.tracks):     # here iter on the datasource not tracks
+        for i, track in tqdm.tqdm(enumerate(mus.tracks)):     # here iter on the datasource not tracks
             scores = separate_and_evaluate(
                 track=track,
                 model_dir=args.model_dir,
                 targets=args.targets,
-                output_dir=args.out_dir
+                output_dir=args.out_dir,
+                data_source=data_source,
+                dataset=test_dataset
             )
             results.add_track(scores)
 
