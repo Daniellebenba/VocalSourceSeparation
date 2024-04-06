@@ -503,6 +503,7 @@ class PodcastMixDB(object):
             df = pd.read_csv(metadata_file, engine='python')  # create .csv files of the mixes for synthetic
 
             path_dir = os.path.dirname(os.path.dirname(self.root))  # todo warning change here
+            path_dir = path_dir.replace("/podcastmix/", "/")
             for i, row in df.iterrows():
                 track = musdb.MultiTrack(
                     name=row["speech_ID"]+"_"+row["name"],
@@ -551,6 +552,8 @@ class PodcastMixDB(object):
         df = pd.read_csv(path, engine='python', delimiter=';')         # create .csv files of the mixes for synthetic
 
         path_dir = os.path.dirname(os.path.dirname(self.root))     # todo warning change here
+        path_dir = path_dir.replace("/podcastmix/", "/")
+
         for i, row in df.iterrows():
             track = musdb.MultiTrack(
                 name=row["song"],

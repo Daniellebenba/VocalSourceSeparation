@@ -36,7 +36,7 @@ from data import load_datasources
 from util import AverageMeter, get_statistics
 from args import get_train_args
 
-FLAG_LOCAL = True           # TODO: warning for test locally, change to False when running
+FLAG_LOCAL = False           # TODO: warning for test locally, change to False when running
 
 def get_nnabla_version_integer():
     r = list(map(int, re.match('^(\d+)\.(\d+)\.(\d+)', nn.__version__).groups()))
