@@ -35,7 +35,7 @@ from podcastmix_data.podcastmix_utils import PodcastMixDB, PodcastDataSource, sa
 from podcastmix_data.podcastmix_nnbala_datasources import PodcastMixDataSourceReal, PodcastMixDataSourceSynth
 from podcastmix_data.podcastmix_utils import mono_to_stereo
 
-FLAG_LOCAL = True           # TODO: warning for test locally, change to False when running
+FLAG_LOCAL = False           # TODO: warning for test locally, change to False when running
 
 def separate_and_evaluate(
     track,
@@ -166,6 +166,7 @@ if __name__ == '__main__':
             is_wav=args.is_wav
         )
         data_source = PodcastDataSource.RealWithRef
+        test_dataset = None
     else:
         raise Exception(f"data source not supported: podcastmix_synth or podcastmix_real solely")
 
