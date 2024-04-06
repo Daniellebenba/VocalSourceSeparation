@@ -36,6 +36,7 @@ from data import load_datasources
 from util import AverageMeter, get_statistics
 from args import get_train_args
 
+FLAG_LOCAL = True           # TODO: warning for test locally, change to False when running
 
 def get_nnabla_version_integer():
     r = list(map(int, re.match('^(\d+)\.(\d+)\.(\d+)', nn.__version__).groups()))
@@ -51,10 +52,13 @@ def train():
     parser, args = get_train_args()
 
     # Get context.
-    #*
-    # args.context = 'cpu'    # TODO: warning  this for test uncomment
+    if FLAG_LOCAL:
+        args.context = 'cpu'
     ctx = get_extension_context(args.context, device_id=args.device_id)
-    # ctx.device_id = '0'     # TODO: warning  this for test uncomment
+
+    if FLAG_LOCAL:
+        ctx.device_id = '0'
+
     comm = CommunicatorWrapper(ctx)
     nn.set_default_context(comm.ctx)
     ext = import_extension_module(args.context)
@@ -105,7 +109,8 @@ def train():
     print(f"max_iter per GPU-device:{max_iter}")
 
     # todo: hardcoded
-    args.checkpoint_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
+    if FLAG_LOCAL:
+        args.checkpoint_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
 
     if args.checkpoint_path:
         scaler_mean, scaler_std = None, None        # since we load anyways the oddset and scale        # TODO: do we want to change that? so we learn new?
