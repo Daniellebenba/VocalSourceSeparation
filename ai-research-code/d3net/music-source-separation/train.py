@@ -36,7 +36,7 @@ from data import load_datasources
 from util import AverageMeter, get_statistics
 from args import get_train_args
 
-FLAG_LOCAL = False           # TODO: warning for test locally, change to False when running
+          # TODO: warning for test locally, change to False when running
 
 def get_nnabla_version_integer():
     r = list(map(int, re.match('^(\d+)\.(\d+)\.(\d+)', nn.__version__).groups()))
@@ -44,6 +44,7 @@ def get_nnabla_version_integer():
 
 
 def train():
+    FLAG_LOCAL = False
     # Check NNabla version
     if get_nnabla_version_integer() < 11900:
         raise ValueError(
@@ -54,6 +55,8 @@ def train():
     # Get context.
     if FLAG_LOCAL:
         args.context = 'cpu'
+        args.checkpoint_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals_batch15768.h5"
+        args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'
     ctx = get_extension_context(args.context, device_id=args.device_id)
 
     if FLAG_LOCAL:
@@ -110,7 +113,7 @@ def train():
 
     # todo: hardcoded
     if FLAG_LOCAL:
-        args.checkpoint_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
+        args.checkpoint_path = "/ai-research-code/d3net/music-source-separation/assets/vocals_original.h5"
 
     if args.checkpoint_path:
         scaler_mean, scaler_std = None, None        # since we load anyways the oddset and scale        # TODO: do we want to change that? so we learn new?

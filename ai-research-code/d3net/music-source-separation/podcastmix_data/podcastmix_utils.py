@@ -11,7 +11,7 @@ import musdb
 import os
 from enum import Enum
 import stempeg
-from museval import TrackStore, evaluate
+from museval import TrackStore, pad_or_truncate, metrics
 
 class PodcastDataSource(Enum):
     RealWithRef = "real_with_ref"
@@ -503,7 +503,7 @@ class PodcastMixDB(object):
             df = pd.read_csv(metadata_file, engine='python')  # create .csv files of the mixes for synthetic
 
             path_dir = os.path.dirname(os.path.dirname(self.root))  # todo warning change here
-            path_dir = path_dir.replace("/podcastmix/", "/")
+            path_dir = path_dir.replace("/podcastmix", "")
             for i, row in df.iterrows():
                 track = musdb.MultiTrack(
                     name=row["speech_ID"]+"_"+row["name"],
@@ -552,7 +552,7 @@ class PodcastMixDB(object):
         df = pd.read_csv(path, engine='python', delimiter=';')         # create .csv files of the mixes for synthetic
 
         path_dir = os.path.dirname(os.path.dirname(self.root))     # todo warning change here
-        path_dir = path_dir.replace("/podcastmix/", "/")
+        path_dir = path_dir.replace("/podcastmix", "")
 
         for i, row in df.iterrows():
             track = musdb.MultiTrack(
@@ -630,6 +630,55 @@ def save_estimates(user_estimates, track, estimates_dir, write_stems=False):
 
 
 
+def evaluate(
+    references, estimates, win=1 * 44100, hop=1 * 44100, mode="v4", padding=True
+):
+    """BSS_EVAL images evaluation using metrics module
+
+    Parameters
+    ----------
+    references : np.ndarray, shape=(nsrc, nsampl, nchan)
+        array containing true reference sources
+    estimates : np.ndarray, shape=(nsrc, nsampl, nchan)
+        array containing estimated sources
+    window : int, defaults to 44100
+        window size in samples
+    hop : int
+        hop size in samples, defaults to 44100 (no overlap)
+    mode : str
+        BSSEval version, default to `v4`
+    Returns
+    -------
+    SDR : np.ndarray, shape=(nsrc,)
+        vector of Signal to Distortion Ratios (SDR)
+    ISR : np.ndarray, shape=(nsrc,)
+        vector of Source to Spatial Distortion Image (ISR)
+    SIR : np.ndarray, shape=(nsrc,)
+        vector of Source to Interference Ratios (SIR)
+    SAR : np.ndarray, shape=(nsrc,)
+        vector of Sources to Artifacts Ratios (SAR)
+    """
+
+    estimates = np.array(estimates)
+    references = np.array(references)
+
+    if padding:
+        references, estimates = pad_or_truncate(references, estimates)
+
+    SDR, ISR, SIR, SAR, _ = metrics.bss_eval(
+        references,
+        estimates,
+        compute_permutation=False,
+        window=win,
+        hop=hop,
+        framewise_filters=(mode == "v3"),
+        bsseval_sources_version=False,
+    )
+
+    MSE = np.mean(np.square(estimates - references), 1)
+
+    return SDR, ISR, SIR, SAR, MSE
+
 def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.0, hop=1.0):
     """Compute all bss_eval metrics for the musdb track and estimated signals,
     given by a `user_estimates` dict.
@@ -686,7 +735,7 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
             audio_estimates.append(user_estimates[target][:, 0][np.newaxis, ...].T)
             audio_reference.append(track.targets[target].audio[np.newaxis, ...].T)
 
-        SDR, ISR, SIR, SAR = evaluate(
+        SDR, ISR, SIR, SAR, MSE = evaluate(
             audio_reference,
             audio_estimates,
             win=int(win * track.rate),
@@ -704,6 +753,7 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
                 "SIR": SIR[i].tolist(),
                 "ISR": ISR[i].tolist(),
                 "SAR": SAR[i].tolist(),
+                # "MSE": MSE[i].tolist()
             }
 
             data.add_target(target_name=target, values=values)
@@ -726,7 +776,7 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
             audio_estimates.append(user_estimates[target])
             audio_reference.append(track.targets[target].audio)
 
-        SDR, ISR, SIR, SAR = evaluate(
+        SDR, ISR, SIR, SAR, MSE = evaluate(
             audio_reference,
             audio_estimates,
             win=int(win * track.rate),
@@ -741,6 +791,7 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
                 "SIR": SIR[i].tolist(),
                 "ISR": ISR[i].tolist(),
                 "SAR": SAR[i].tolist(),
+                # "MSE": MSE[i].tolist()
             }
 
             data.add_target(target_name=target, values=values)
@@ -761,4 +812,4 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
         except IOError:
             pass
 
-    return data
+    return data, MSE
