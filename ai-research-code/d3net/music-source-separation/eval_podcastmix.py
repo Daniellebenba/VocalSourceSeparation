@@ -28,14 +28,16 @@ import musdb
 import nnabla as nn
 from nnabla.ext_utils import get_extension_context
 import librosa
+import nnabla.functions as F
 
 from filter import apply_mwf
 from util import stft2time_domain, model_separate
 from podcastmix_data.podcastmix_utils import PodcastMixDB, PodcastDataSource, save_estimates, eval_podcast_track
 from podcastmix_data.podcastmix_nnbala_datasources import PodcastMixDataSourceReal, PodcastMixDataSourceSynth
 from podcastmix_data.podcastmix_utils import mono_to_stereo
+from model import spectogram
 
-FLAG_LOCAL = False           # TODO: warning for test locally, change to False when running
+
 
 def separate_and_evaluate(
     track,
@@ -56,6 +58,7 @@ def separate_and_evaluate(
 
     elif data_source is PodcastDataSource.RealWithRef:
         audio = track.audio[..., np.newaxis]
+        sources = np.vstack([track.targets[t].audio for t in targets])
 
     else:
         raise Exception(f"Data source not supported, PodcastMix Real or Synthetic only")
@@ -78,32 +81,45 @@ def separate_and_evaluate(
 
     for target in targets:
         # Load the model weights for corresponding target
-        nn.load_parameters(os.path.abspath(f"{os.path.join(model_dir, target)}.h5"))
+        model_path = os.path.abspath(f"{os.path.join(model_dir, target)}.h5")
+        nn.load_parameters(model_path)
+        print(f"Loaded Parameters {model_path}")
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"configs/{target}.yaml")) as file:
             # Load target specific Hyper parameters
             hparams = yaml.load(file, Loader=yaml.FullLoader)
-        with nn.parameter_scope(target):
+        target_scope = f"VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/{target}"
+        with nn.parameter_scope(target_scope):
             out_sep = model_separate(
                 inp_stft_contiguous, hparams, ch_flip_average=True)
             out_stfts[target] = out_sep * np.exp(1j * np.angle(inp_stft))
 
     out_stfts = apply_mwf(out_stfts, inp_stft)
 
+
     estimates = {}
-    for target in targets:
-        estimates[target] = stft2time_domain(out_stfts[target], hop_size)
+    for i, target in enumerate(targets):
+        estimates[target] = stft2time_domain(out_stfts[target], hop_size)   # -> (264192,2)
+
+        # target_audio = nn.Variable([args.batch_size] + list(train_source._get_data(0)[1].shape))  # MusdDB: (batch, 2, 264600)
+        # target_spec = spectogram(*stft(target_audio, n_fft=hparams['fft_size'], n_hop=hparams['hop_size'], patch_length=256),
+        #                          mono=(hparams['n_channels'] == 1))          # original MusDB: mix_spec.shape: (6, 256, 2, 2049), 2: vocals (=target) and others tracks
+        # loss = F.mean(F.squared_error(out_stfts[target], sources[0]))
+        # Assuming out_stfts[target] and sources[0] are NumPy arrays
+        # mse = np.mean(np.square(estimates[target] - sources[i]))
 
     if output_dir:
         save_estimates(estimates, track, output_dir)
 
     # scores = museval.eval_mus_track(
-    scores = eval_podcast_track(
+    scores, mse = eval_podcast_track(
         track, estimates, output_dir=output_dir
     )
-    return scores
+    return scores, mse
 
 
 if __name__ == '__main__':
+    FLAG_LOCAL = False  # TODO: warning for test locally, change to False when running
+
     # Evaluation settings
     parser = argparse.ArgumentParser(
         description='PodcastMix Evaluation', add_help=False)
@@ -119,7 +135,7 @@ if __name__ == '__main__':
     parser.add_argument('--root', type=str, help='Path to PodcastMix')
 
     parser.add_argument('--subset', type=str, default='test',
-                        help='PodcastMix subset (`train`/`val`/`test`)')        # if is real won't change nothing
+                        help='PodcastMix subset (`train`/`val`/`test`), valid only for Synthetic')        # if is real won't change nothing
     parser.add_argument('--cores', type=int, default=1)
     parser.add_argument('--is-wav', action='store_true',
                         default=False, help='flag: wav version of the dataset')
@@ -154,7 +170,7 @@ if __name__ == '__main__':
         #     is_wav=args.is_wav
         # )
         data_source = PodcastDataSource.Synth
-        test_dataset = PodcastMixDataSourceSynth(subset="test", random_track_mix=False, args=args, samples_per_track=1, to_stereo=False)
+        test_dataset = PodcastMixDataSourceSynth(subset=args.subset, random_track_mix=False, args=args, samples_per_track=1, to_stereo=False)
         mus = test_dataset.mus
 
     elif args.data_source == "podcastmix_real":
@@ -178,11 +194,11 @@ if __name__ == '__main__':
     #         random_track_mix=True, args=args)
     # else:
     #     raise Exception("not supported data source, choose musdb/ podcastmix_real/ podcastmix_synth only!")
-
+    mse_list = []
     if args.cores > 1:
         pool = multiprocessing.Pool(args.cores)
         results = museval.EvalStore()
-        scores_list = list(
+        scores_list, mse_list = list(
             pool.imap_unordered(
                 func=functools.partial(
                     separate_and_evaluate,
@@ -203,7 +219,7 @@ if __name__ == '__main__':
     else:
         results = museval.EvalStore()
         for i, track in tqdm.tqdm(enumerate(mus.tracks)):     # here iter on the datasource not tracks
-            scores = separate_and_evaluate(
+            scores, mse = separate_and_evaluate(
                 track=track,
                 model_dir=args.model_dir,
                 targets=args.targets,
@@ -212,8 +228,10 @@ if __name__ == '__main__':
                 dataset=test_dataset
             )
             results.add_track(scores)
+            mse_list.append(mse)
 
     print(results)
+    print(f"Average MSE: {np.array(mse_list).mean()}")
     method = museval.MethodStore()
     method.add_evalstore(results, args.model_dir)
     method.save(args.model_dir + '.pandas')
