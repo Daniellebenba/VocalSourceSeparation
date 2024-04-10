@@ -800,7 +800,7 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
     df = data.df
     for i, target in enumerate(eval_targets):
         row = {'time': 0, 'target': target, 'metric': 'MSE', 'score': MSE[i].mean(), 'track': track.name}
-        df._append(row, ignore_index=True)
+        df = df._append(row, ignore_index=True)
 
     if output_dir:
         # validate against the schema
