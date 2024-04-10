@@ -198,7 +198,7 @@ def train():
             if comm.rank == 0 and batch % log_batch == 0:
                 avg_loss = losses.get_avg()
                 monitor_traing_loss_batch.add(batch, avg_loss)
-                print(f"epoch {epoch}, batch {batch}, loss: {loss}")
+                print(f"epoch {epoch}, batch {batch}, loss: {avg_loss}")
 
         training_loss = losses.get_avg()
 
