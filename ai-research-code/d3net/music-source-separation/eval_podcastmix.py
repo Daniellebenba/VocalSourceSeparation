@@ -90,7 +90,7 @@ def separate_and_evaluate(
             # Load target specific Hyper parameters
             hparams = yaml.load(file, Loader=yaml.FullLoader)
         target_scope = f"VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/{target}"
-        target_scope = 'VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/'
+        target_scope = 'VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/vocals'
         with nn.parameter_scope(target_scope):
             out_sep = model_separate(
                 inp_stft_contiguous, hparams, ch_flip_average=True)
