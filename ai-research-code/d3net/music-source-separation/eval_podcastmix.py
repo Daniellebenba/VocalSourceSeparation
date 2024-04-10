@@ -131,7 +131,7 @@ if __name__ == '__main__':
                         help='Choose data source: podcastmix_real / podcastmix_synth')
     parser.add_argument('--model-dir', '-m', type=str,
                         default='./d3net-mss', help='path to the directory of pretrained models.')
-    parser.add_argument('--model-path', '-m', type=str,
+    parser.add_argument('--model-path', '-mp', type=str,
                         default='./d3net-mss/vocals.h5', help='path to the pretrained model.')
     parser.add_argument('--targets', nargs='+', default=['vocals'],
                         type=str, help='provide targets to be processed. If none, all available targets will be computed')
