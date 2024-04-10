@@ -22,7 +22,7 @@ import musdb
 from nnabla.utils.data_source import DataSource
 from podcastmix_data.podcastmix_nnbala_datasources import PodcastMixDataSourceReal, PodcastMixDataSourceSynth
 
-
+LOCAL_FLAG = False
 class Compose():
     """Composes several augmentation transforms.
     Args:
@@ -79,7 +79,7 @@ def load_datasources(parser, args):
     # args.data_source = "podcastmix_real"
     args.data_source = "podcastmix_synth"
     # # args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference'
-    args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'
+    args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'   # todo Wraning this for test
 
     if args.data_source == "musdb":
         train_dataset = MUSDBDataSource(

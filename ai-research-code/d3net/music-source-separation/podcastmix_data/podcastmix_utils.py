@@ -796,6 +796,12 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
 
             data.add_target(target_name=target, values=values)
 
+    # save results into data frame
+    df = data.df
+    for i, target in enumerate(eval_targets):
+        row = {'time': 0, 'target': target, 'metric': 'MSE', 'score': MSE[i].mean(), 'track': track.name}
+        df._append(row, ignore_index=True)
+
     if output_dir:
         # validate against the schema
         data.validate()
@@ -809,7 +815,12 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
             with open(op.join(subset_path, track.name) + ".json", "w+") as f:
                 f.write(data.json)
 
+
+            df.to_csv(op.join(subset_path, track.name) + ".csv")
+
         except IOError:
             pass
 
     return data, MSE
+
+

@@ -42,6 +42,7 @@ from model import spectogram
 def separate_and_evaluate(
     track,
     model_dir,
+    model_path,
     targets,
     output_dir,
     data_source: PodcastDataSource,
@@ -81,13 +82,15 @@ def separate_and_evaluate(
 
     for target in targets:
         # Load the model weights for corresponding target
-        model_path = os.path.abspath(f"{os.path.join(model_dir, target)}.h5")
+        # model_path = os.path.abspath(f"{os.path.join(model_dir, target)}.h5")
+        # model_path = model_dir
         nn.load_parameters(model_path)
         print(f"Loaded Parameters {model_path}")
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"configs/{target}.yaml")) as file:
             # Load target specific Hyper parameters
             hparams = yaml.load(file, Loader=yaml.FullLoader)
         target_scope = f"VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/{target}"
+        target_scope = 'VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/'
         with nn.parameter_scope(target_scope):
             out_sep = model_separate(
                 inp_stft_contiguous, hparams, ch_flip_average=True)
@@ -128,6 +131,8 @@ if __name__ == '__main__':
                         help='Choose data source: podcastmix_real / podcastmix_synth')
     parser.add_argument('--model-dir', '-m', type=str,
                         default='./d3net-mss', help='path to the directory of pretrained models.')
+    parser.add_argument('--model-path', '-m', type=str,
+                        default='./d3net-mss/vocals.h5', help='path to the pretrained model.')
     parser.add_argument('--targets', nargs='+', default=['vocals'],
                         type=str, help='provide targets to be processed. If none, all available targets will be computed')
     parser.add_argument('--out-dir', type=str, default=None,
@@ -160,6 +165,7 @@ if __name__ == '__main__':
         args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth"
         args.data_source = "podcastmix_synth"
         args.model_dir = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/"
+        args.model_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
 
     if args.data_source == "podcastmix_synth":
         # mus = PodcastMixDB(
@@ -203,6 +209,7 @@ if __name__ == '__main__':
                 func=functools.partial(
                     separate_and_evaluate,
                     model_dir=args.model_dir,
+                    model_path=args.model_path,
                     targets=args.targets,
                     output_dir=args.out_dir,
                     data_source=data_source,
@@ -222,6 +229,7 @@ if __name__ == '__main__':
             scores, mse = separate_and_evaluate(
                 track=track,
                 model_dir=args.model_dir,
+                model_path=args.model_path,
                 targets=args.targets,
                 output_dir=args.out_dir,
                 data_source=data_source,
