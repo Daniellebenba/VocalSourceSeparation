@@ -91,6 +91,8 @@ def separate_and_evaluate(
             hparams = yaml.load(file, Loader=yaml.FullLoader)
         target_scope = f"VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/{target}"
         target_scope = 'VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/VocalSourceSeparation/ai-research-code/d3net/music-source-separation/configs/vocals'
+        # target_scope = 'vocals'     # for the MusDB weights
+        # target_scope = 'XXX'     # for the random weights
         with nn.parameter_scope(target_scope):
             out_sep = model_separate(
                 inp_stft_contiguous, hparams, ch_flip_average=True)
@@ -114,10 +116,10 @@ def separate_and_evaluate(
         save_estimates(estimates, track, output_dir)
 
     # scores = museval.eval_mus_track(
-    scores, mse = eval_podcast_track(
+    scores, mse, isdr = eval_podcast_track(
         track, estimates, output_dir=output_dir
     )
-    return scores, mse
+    return scores, mse, isdr
 
 
 if __name__ == '__main__':
@@ -164,8 +166,10 @@ if __name__ == '__main__':
 
         args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth"
         args.data_source = "podcastmix_synth"
+        args.subset = "test"
         args.model_dir = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/"
         args.model_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals.h5"
+        args.model_path = "/Users/daniellebenbashat/PycharmProjects/audio/ai-research-code/d3net/music-source-separation/assets/vocals_run2_epoch10.h5"
 
     if args.data_source == "podcastmix_synth":
         # mus = PodcastMixDB(
@@ -201,10 +205,11 @@ if __name__ == '__main__':
     # else:
     #     raise Exception("not supported data source, choose musdb/ podcastmix_real/ podcastmix_synth only!")
     mse_list = []
+    isdr_list = []
     if args.cores > 1:
         pool = multiprocessing.Pool(args.cores)
         results = museval.EvalStore()
-        scores_list, mse_list = list(
+        scores_list, mse_list, isdr_list = list(
             pool.imap_unordered(
                 func=functools.partial(
                     separate_and_evaluate,
@@ -226,7 +231,7 @@ if __name__ == '__main__':
     else:
         results = museval.EvalStore()
         for i, track in tqdm.tqdm(enumerate(mus.tracks)):     # here iter on the datasource not tracks
-            scores, mse = separate_and_evaluate(
+            scores, mse, isdr = separate_and_evaluate(
                 track=track,
                 model_dir=args.model_dir,
                 model_path=args.model_path,
@@ -237,9 +242,11 @@ if __name__ == '__main__':
             )
             results.add_track(scores)
             mse_list.append(mse)
+            isdr_list.append(isdr)
 
     print(results)
     print(f"Average MSE: {np.array(mse_list).mean()}")
+    print(f"Average ISDR: {np.array(isdr_list).mean()}")
     method = museval.MethodStore()
     method.add_evalstore(results, args.model_dir)
     method.save(args.model_dir + '.pandas')
