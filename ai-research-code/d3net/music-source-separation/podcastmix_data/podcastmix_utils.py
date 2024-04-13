@@ -12,7 +12,7 @@ import os
 from enum import Enum
 import stempeg
 from museval import TrackStore, pad_or_truncate, metrics
-from helpers import compute_ISDR
+from .helpers import compute_ISDR
 
 class PodcastDataSource(Enum):
     RealWithRef = "real_with_ref"
