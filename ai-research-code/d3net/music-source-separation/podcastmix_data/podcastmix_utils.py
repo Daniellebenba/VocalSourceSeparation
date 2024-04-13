@@ -12,6 +12,7 @@ import os
 from enum import Enum
 import stempeg
 from museval import TrackStore, pad_or_truncate, metrics
+from helpers import compute_ISDR
 
 class PodcastDataSource(Enum):
     RealWithRef = "real_with_ref"
@@ -535,7 +536,7 @@ class PodcastMixDB(object):
                 if len(sources) == len(self.sources_names):
                     valid_counter += 1
                     # add track to list of tracks
-                tracks.append(track)
+                    tracks.append(track)
             print(f"Finished loading {valid_counter} valid tracks")
         return tracks
 
@@ -676,8 +677,10 @@ def evaluate(
     )
 
     MSE = np.mean(np.square(estimates - references), 1)
+    ISDR = compute_ISDR(references, estimates)
 
-    return SDR, ISR, SIR, SAR, MSE
+    return SDR, ISR, SIR, SAR, MSE, ISDR
+
 
 def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.0, hop=1.0):
     """Compute all bss_eval metrics for the musdb track and estimated signals,
@@ -735,7 +738,7 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
             audio_estimates.append(user_estimates[target][:, 0][np.newaxis, ...].T)
             audio_reference.append(track.targets[target].audio[np.newaxis, ...].T)
 
-        SDR, ISR, SIR, SAR, MSE = evaluate(
+        SDR, ISR, SIR, SAR, MSE, ISDR = evaluate(
             audio_reference,
             audio_estimates,
             win=int(win * track.rate),
@@ -776,7 +779,7 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
             audio_estimates.append(user_estimates[target])
             audio_reference.append(track.targets[target].audio)
 
-        SDR, ISR, SIR, SAR, MSE = evaluate(
+        SDR, ISR, SIR, SAR, MSE, ISDR = evaluate(
             audio_reference,
             audio_estimates,
             win=int(win * track.rate),
@@ -799,7 +802,9 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
     # save results into data frame
     df = data.df
     for i, target in enumerate(eval_targets):
-        row = {'time': 0, 'target': target, 'metric': 'MSE', 'score': MSE[i].mean(), 'track': track.name}
+        row = {'time': 0, 'target': target, 'metric': 'MSE', 'score': MSE.mean(), 'track': track.name}
+        df = df._append(row, ignore_index=True)
+        row = {'time': 0, 'target': target, 'metric': 'ISDR', 'score': ISDR.mean(), 'track': track.name}
         df = df._append(row, ignore_index=True)
 
     if output_dir:
@@ -821,6 +826,6 @@ def eval_podcast_track(track, user_estimates, output_dir=None, mode="v4", win=1.
         except IOError:
             pass
 
-    return data, MSE
+    return data, MSE, ISDR
 
 
