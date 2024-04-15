@@ -36,7 +36,7 @@ from data import load_datasources
 from util import AverageMeter, get_statistics
 from args import get_train_args
 
-          # TODO: warning for test locally, change to False when running
+
 
 def get_nnabla_version_integer():
     r = list(map(int, re.match('^(\d+)\.(\d+)\.(\d+)', nn.__version__).groups()))
@@ -216,13 +216,16 @@ def train():
             # save intermediate weights
             path = f"{os.path.join(args.output, args.target)}_epoch{epoch}.h5"
             print(f"finish epoch {epoch}, loss: {training_loss}, saving checkpoint {path}")
-            nn.save_parameters(path)
+
+            with nn.parameter_scope(args.target):
+                nn.save_parameters(path)
 
     if comm.rank == 0:
         # save final weights
         path = f"{os.path.join(args.output, args.target)}_final.h5"
         print(f"saving final weights {path}")
-        nn.save_parameters(path)
+        with nn.parameter_scope(args.target):
+            nn.save_parameters(path)
 
 
 if __name__ == '__main__':

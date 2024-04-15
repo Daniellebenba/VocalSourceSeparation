@@ -62,7 +62,7 @@ pip install museval
 and then run the evaluation using
 
 ```bash
-python eval.py --model [path to downloaded model file (./x-umx.h5)] --root [Path to MUSDB18 dataset] --out-dir [Path to save musdb estimates and museval results]
+python eval_podcastmix.py --model [path to downloaded model file (./x-umx.h5)] --root [Path to MUSDB18 dataset] --out-dir [Path to save musdb estimates and museval results]
 ```
 
 ## Training X-UMX
