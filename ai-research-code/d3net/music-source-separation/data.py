@@ -74,12 +74,8 @@ def load_datasources(parser, args):
         [globals()['_augment_' + aug] for aug in args.source_augmentations]
     )
 
-    # todo Wraning this for test
-    # args.data_source = "musdb"
-    # args.data_source = "podcastmix_real"
-    args.data_source = "podcastmix_synth"
-    # # args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-real-with-reference'
-    args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'   # todo Wraning this for test
+    # args.data_source = "podcastmix_synth"
+    # args.root = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth'   # todo Wraning this for test
 
     if args.data_source == "musdb":
         train_dataset = MUSDBDataSource(
@@ -147,10 +143,6 @@ class MUSDBDataSource(DataSource):
         self.source_augmentations = source_augmentations
         self.random_track_mix = random_track_mix
         # **
-        # uncomment
-        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/data"
-        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcast/"  # TODO: warning!!
-        # args.root = "/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/musdb18"
         args.is_wav = False     # TODO: warning!! put hardcoded since ar won't work need to check
         # **
         self.mus = musdb.DB(

@@ -15,7 +15,7 @@
 '''
 Utility code
 '''
-
+import matplotlib.pyplot as plt
 import numpy as np
 import nnabla as nn
 import soundfile as sf
@@ -25,6 +25,7 @@ from pydub.utils import mediainfo
 from sklearn import preprocessing   # **
 import tqdm
 from model import D3NetMSS, stft, spectogram
+
 
 from podcastmix_data.podcastmix_utils import mono_to_stereo
 
@@ -36,7 +37,6 @@ def get_statistics(args, datasource):
 
     for ind in pbar:
         x = datasource.mus.tracks[ind].audio.T
-        # x = datasource._get_data(ind)[0]      # todo change here insteadf of mus.tracks
         x = mono_to_stereo(x)
         audio = nn.NdArray.from_numpy_array(x[None, ...])
         target_spec = spectogram(
@@ -115,6 +115,8 @@ def stft2time_domain(stft, hop_size, stft_center=True):
     return audio
 
 
+
+
 def save_stft_wav(stft, hop_size, sample_rate, outfile_name, stft_center=True, samplewidth=2):
     '''
     Helper function to save wav file from STFT
@@ -175,6 +177,7 @@ def calc_output_overlap_add(inp, hparams, out_ch=None, ch_flip_average=False, op
         out_ch = inp.shape[1]
     output = np.zeros([output_length, out_ch, inp.shape[2]], dtype=np.float32)
 
+    patches = 1
     for patch_id in range(patches):
         inp_ = inp_padded[patch_id * shift: patch_id *
                           shift + patch_length, :, :]
@@ -196,7 +199,7 @@ def calc_output_overlap_add(inp, hparams, out_ch=None, ch_flip_average=False, op
             out = out[0]
         output[patch_id * shift: (patch_id + scale)
                * shift, :, :] += out[:shift * scale, :, :]
-
+    #check here before!!
     output = output[shift * (scale - 1):shift *
                     (scale - 1) + inp.shape[0]] / scale
     return output

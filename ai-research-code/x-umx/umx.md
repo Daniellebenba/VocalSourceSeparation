@@ -85,7 +85,7 @@ pip install museval
 and then run the evaluation using
 
 ```bash
-python eval.py --umx-infer --model [path to extracted base folder of umx/umxhq weights] --root [Path to MUSDB18 dataset] --out-dir [Path to save musdb estimates and museval results]
+python eval_podcastmix.py --umx-infer --model [path to extracted base folder of umx/umxhq weights] --root [Path to MUSDB18 dataset] --out-dir [Path to save musdb estimates and museval results]
 ```
 
 ### Results compared to SiSEC 2018 (SDR/Vocals)
