@@ -10,7 +10,7 @@ from nnabla.utils.data_source import DataSource
 
 
 
-class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
+class PodcastMixDataSourceSynth(DataSource):
     dataset_name = "PodcastMix-Synth"
     data_source = PodcastDataSource.Synth
     # def __init__(self, csv_dir, sample_rate=44100, original_sample_rate=44100, segment=2,
@@ -98,11 +98,9 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         self.source_augmentations = source_augmentations
         self.random_track_mix = random_track_mix
 
-        # todo: support synth case!!!
-        self.mus = PodcastMixDB(        # todo: chane to support synthetic
+        self.mus = PodcastMixDB(
             data_source=self.data_source,
             root=args.root,
-            # df_tracks=[self.df_speech, self.df_music],      # todo: not sure wich dfs here
             is_wav=args.is_wav,
             split=None,
             subsets=subset#,        # change since train was hardcoded
@@ -193,7 +191,6 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
         # music sample_rate
         length = int(row['length.1'])
         audio_signal = np.zeros(self.segment * self.original_sample_rate)
-
         # iterate until the segment is not silence
         audio_path = os.path.join(os.path.dirname(self.root), row['music_path'])
         audio_signal = self.load_mono_random_segment(audio_signal, length, audio_path,
@@ -257,11 +254,6 @@ class PodcastMixDataSourceSynth(DataSource):     # todo support for syntethic
 
             path_dir = os.path.dirname(self.root)  # todo warning change here
             audio_path = os.path.join(path_dir, row_speech['speech_path'])
-            # audio_path = row_speech['speech_path'].values[0]        # TODO: warning data saved within the run
-
-            # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/speech/p243_001_mic1.flac'
-            # audio_path = '/Users/daniellebenbashat/Documents/IDC/signal_processing/FinalProject/data/podcastmix/podcastmix-synth/test/problematic/p252_068_mic1.flac' # TODO Warning for test now!!
-
             speech_signal, _ = torchaudio.load(
                 audio_path
             )
